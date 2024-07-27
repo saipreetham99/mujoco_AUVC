@@ -641,7 +641,7 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   offscreen_cam.fixedcamid = camera_id;
 
   mjv_updateScene(sim->m_, sim->d_, opt, NULL, &offscreen_cam, mjCAT_ALL, scn);
-  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),0 ,color_buffer);
+  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),1 ,color_buffer);
   renderActuatorForces(sim->m_, sim->d_, opt, pert, &cam, scn); /*** AUVC ***/
 
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);

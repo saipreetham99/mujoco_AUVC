@@ -799,39 +799,46 @@ static void adjustLight(const mjvLight* thislight, int n) {
 // Refer: https://youtu.be/q80r0HJVZq8?si=nTwwGcB3t_zej0_a
 void displayOverlay(unsigned char* data, const mjrContext* con){
     glEnable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
+    glEnable(GL_TEXTURE0);
+
+  glDisable(GL_LIGHTING);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  // Save transform attributes (Matrix Mode and Enabled Modes)
+  glPushAttrib(GL_TRANSFORM_BIT|GL_ENABLE_BIT);
+  // Save projection matrix and set unit transform
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  glOrtho(-1,+1,-1,1,-1,1);
+  // Save model view matrix and set to identity
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+  // Draw bottom with texture
+  glColor4f(1,1,1,0.5);
+  glEnable(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); //or GL_NEAREST
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // Setup Frame Buffer
-    unsigned int textureID = con->offFBO;
+    unsigned int textureID = con->offColor;
     glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_INT, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST ); //or GL_NEAREST
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    // Set 2D Projection rendering
-    glPushAttrib(GL_TRANSFORM_BIT |  GL_ENABLE_BIT);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(-1,1,-1,1,-1,1);
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-    // Render Quads here
-    glColor4f(0.4,0.0,0.0,0.5);
-    glEnable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS);{
-      glTexCoord2d(0,0); glVertex2d(0.0f,0.0f);
-      glTexCoord2d(1,0); glVertex2d(0.5f,0.0f);
-      glTexCoord2d(1,1); glVertex2d(0.5f,0.5f);
-      glTexCoord2d(0,1); glVertex2d(0.0f,0.5f);
-    }
-    glEnd();
+  glBindTexture(GL_TEXTURE_2D, textureID);
+  glBegin(GL_QUADS);
+  glTexCoord2d(0,0);glVertex2f(-2,-1);
+  glTexCoord2d(1,0);glVertex2f(+2,-1);
+  glTexCoord2d(1,1);glVertex2f(+2, 0);
+  glTexCoord2d(0,1);glVertex2f(-2, 0);
+  glEnd();
+  glDisable(GL_TEXTURE_2D);
+  //  Reset model view matrix
+  glPopMatrix();
+  //  Reset projection matrix
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  //  Pop transform attributes (Matrix Mode and Enabled Modes)
+  glPopAttrib();
     glDisable(GL_BLEND);
-    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_TEXTURE0);
 }
 
 // render
@@ -1472,7 +1479,10 @@ void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, int draw
     glDisable(GL_SCISSOR_TEST);
   }
 
-  if(draw_outlines){displayOverlay(data,con);}
+  if(draw_outlines){
+        // printf("display outlines\n");
+        displayOverlay(data,con);
+    }
 
   // restore currentBuffer
   mjr_restoreBuffer(con);
