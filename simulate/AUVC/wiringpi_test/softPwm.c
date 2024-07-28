@@ -78,10 +78,10 @@ int ledMap [NUM_LEDS] = { 0/*GPIO_17*/,
 
 int values [NUM_LEDS] = { 0, 25, 50, 75, 100, 75, 50, 25 } ;
 
-int main ()
+int main()
 {
   int i, j ;
-  char buf [80] ;
+  //char buf [80] ;
 
   wiringPiSetup ()  ;
 

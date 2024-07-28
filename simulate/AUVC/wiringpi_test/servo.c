@@ -47,7 +47,7 @@ int main ()
 
   softServoSetup (0, 1, 2, 3, 4, 5, 6, 7) ;
 
-  softServoWrite (0,  180) ; // pin 0 is GPIO 17
+  softServoWrite (0,  1500) ; // pin 0 is GPIO 17
 /*
   softServoWrite (1, 1000) ;
   softServoWrite (2, 1100) ;
@@ -57,18 +57,21 @@ int main ()
   softServoWrite (6, 1500) ;
   softServoWrite (7, 2200) ;
 */
+delay(7000);
+printf("done\n");
 
   for(;;){
     // printf("%d\n", current_value);
 
     // Update current_value based on direction
-    current_value += direction;
+    // current_value += direction;
 
-    // Check if we've reached 180 or -180 to change direction
-    if (current_value == upper_limit || current_value == lower_limit) {
-      direction *= -1;  // Change direction
-    }
+    // // Check if we've reached 180 or -180 to change direction
+    // if (current_value == upper_limit || current_value == lower_limit) {
+    //   direction *= -1;  // Change direction
+    // }
     softServoWrite(0, current_value);
-    delay(dt);
+    delayMicroseconds(50);
+    //delay(dt);
   }
 }

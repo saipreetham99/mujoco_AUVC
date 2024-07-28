@@ -1,2 +1,5 @@
 set -x
-rm blink softPwm servo
+rm blink.out
+rm softPwm.out 
+rm servo.out
+rm motors.out
