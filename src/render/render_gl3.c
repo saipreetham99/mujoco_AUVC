@@ -797,9 +797,9 @@ static void adjustLight(const mjvLight* thislight, int n) {
 }
 
 // Refer: https://youtu.be/q80r0HJVZq8?si=nTwwGcB3t_zej0_a
-void displayOverlay(unsigned char* data, const mjrContext* con){
-    glEnable(GL_BLEND);
-    glEnable(GL_TEXTURE0);
+void displayOverlay(auvcData* data, const mjrContext* con){
+  glEnable(GL_BLEND);
+  glEnable(GL_TEXTURE0);
 
   glDisable(GL_LIGHTING);
   glClear(GL_DEPTH_BUFFER_BIT);
@@ -815,20 +815,74 @@ void displayOverlay(unsigned char* data, const mjrContext* con){
   glPushMatrix();
   glLoadIdentity();
   // Draw bottom with texture
-  glColor4f(1,1,1,0.5);
   glEnable(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); //or GL_NEAREST
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Setup Frame Buffer
-    unsigned int textureID = con->offColor;
-    glGenTextures(1, &textureID);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); //or GL_NEAREST
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // Setup Frame Buffer
+  unsigned int textureID = con->offColor;
+  glGenTextures(1, &textureID);
   glBindTexture(GL_TEXTURE_2D, textureID);
-  glBegin(GL_QUADS);
-  glTexCoord2d(0,0);glVertex2f(-2,-1);
-  glTexCoord2d(1,0);glVertex2f(+2,-1);
-  glTexCoord2d(1,1);glVertex2f(+2, 0);
-  glTexCoord2d(0,1);glVertex2f(-2, 0);
-  glEnd();
+
+  // This renders lines in between the points around ar_tag corners
+  if(data->flg_render_ar_outlines){
+    for(int i=0; i < data->n_ar_tags; i++){
+      // Render AR tag outlines
+      printf("i: %d\n",i);
+
+      glBegin(GL_LINES);{
+        glColor4f(data->ar_tag_rgba[0],data->ar_tag_rgba[1],data->ar_tag_rgba[2],data->ar_tag_rgba[3]);
+        glVertex2f(data->artag_corners[i + 0],data->artag_corners[i+1]);
+        glVertex2f(data->artag_corners[i + 2],data->artag_corners[i+3]);
+      }
+      glEnd();
+      glBegin(GL_LINES);{
+        glColor4f(data->ar_tag_rgba[0],data->ar_tag_rgba[1],data->ar_tag_rgba[2],data->ar_tag_rgba[3]);
+        glVertex2f(data->artag_corners[i + 2],data->artag_corners[i+3]);
+        glVertex2f(data->artag_corners[i + 4],data->artag_corners[i+5]);
+      }
+      glEnd();
+      glBegin(GL_LINES);{
+        glColor4f(data->ar_tag_rgba[0],data->ar_tag_rgba[1],data->ar_tag_rgba[2],data->ar_tag_rgba[3]);
+        glVertex2f(data->artag_corners[i + 4],data->artag_corners[i+5]);
+        glVertex2f(data->artag_corners[i + 6],data->artag_corners[i+7]);
+      }
+      glEnd();
+      glBegin(GL_LINES);{
+        glColor4f(data->ar_tag_rgba[0],data->ar_tag_rgba[1],data->ar_tag_rgba[2],data->ar_tag_rgba[3]);
+        glVertex2f(data->artag_corners[i + 6],data->artag_corners[i+7]);
+        glVertex2f(data->artag_corners[i + 0],data->artag_corners[i+1]);
+      }
+      glEnd();
+      // Render AR tag numbers
+      glListBase(con->baseFontNormal);
+      float rgba[3] = {1,1,1};
+      glColor3fv(rgba);
+      float x  = (data->artag_corners[i+0] + data->artag_corners[i+2]) / 2.0;
+      float y  = (data->artag_corners[i+1] + data->artag_corners[i+3]) / 2.0;
+      glRasterPos3i(x, y, 0);
+      int length = snprintf( NULL, 0, "%d", data->artag_numbers[i]);
+      char* str = malloc( length + 1 );
+      snprintf( str, length + 1, "%d", data->artag_numbers[i]);
+      sprintf(str, "%d", data->artag_numbers[i]);
+      glCallLists(length, GL_UNSIGNED_BYTE, str);
+      free(str);
+    }
+  }
+
+  // FIX: This renders lines in between the points around lane corners
+  if(data->flg_render_lanes){
+    for(int i=0; i <= data->n_lanes*8; i++){
+      glBegin(GL_QUADS);{
+        glTexCoord2d(0,0);glVertex2f(data->lane_corners[i + 0],data->lane_corners[i+1]);
+        glTexCoord2d(1,0);glVertex2f(data->lane_corners[i + 2],data->lane_corners[i+3]);
+        glTexCoord2d(1,1);glVertex2f(data->lane_corners[i + 4],data->lane_corners[i+5]);
+        glTexCoord2d(0,1);glVertex2f(data->lane_corners[i + 6],data->lane_corners[i+7]);
+      }
+      glEnd();
+    }
+  }
+
+  // Render the number on top of the circle
   glDisable(GL_TEXTURE_2D);
   //  Reset model view matrix
   glPopMatrix();
@@ -837,12 +891,16 @@ void displayOverlay(unsigned char* data, const mjrContext* con){
   glPopMatrix();
   //  Pop transform attributes (Matrix Mode and Enabled Modes)
   glPopAttrib();
-    glDisable(GL_BLEND);
-    glDisable(GL_TEXTURE0);
+  glDisable(GL_BLEND);
+  glDisable(GL_TEXTURE0);
+
+  // Unset the data->flg_render_overlay after drawing
+  data->flg_render_overlay = 0;
+
 }
 
 // render
-void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, int draw_outlines, unsigned char* data) {
+void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, auvcData* data) {
   int stereo, nt, ngeom = scn->ngeom, nlight = mjMIN(mjMAXLIGHT, scn->nlight);
   unsigned int drawbuffer;
   mjvGLCamera cam;
@@ -1479,10 +1537,7 @@ void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, int draw
     glDisable(GL_SCISSOR_TEST);
   }
 
-  if(draw_outlines){
-        // printf("display outlines\n");
-        displayOverlay(data,con);
-    }
+  if(data->flg_render_overlay){displayOverlay(data,con);}
 
   // restore currentBuffer
   mjr_restoreBuffer(con);

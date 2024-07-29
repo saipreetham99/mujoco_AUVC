@@ -803,7 +803,7 @@ MJAPI void mjr_label(mjrRect viewport, int font, const char* txt,
 MJAPI void mjr_figure(mjrRect viewport, mjvFigure* fig, const mjrContext* con);
 
 // Render 3D scene.
-MJAPI void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, int draw_outlines, unsigned char* data);
+MJAPI void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, auvcData* data);
 
 // Call glFinish.
 MJAPI void mjr_finish(void);

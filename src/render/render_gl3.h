@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 // 3D rendering
-MJAPI void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, int draw_outlines, unsigned char* data);
+MJAPI void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, auvcData* data);
 
 // call glFinish
 MJAPI void mjr_finish(void);

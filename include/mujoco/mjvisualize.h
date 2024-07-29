@@ -680,4 +680,28 @@ struct mjvSceneState_ {
 };
 typedef struct mjvSceneState_ mjvSceneState;
 
+
+#define auvcMaxArTags 6
+#define auvcMaxLanes 10
+
+struct auvcData_ {                       // abstract data struct for all of the Sub Data
+  // enable flags
+  int flg_render_overlay;                 // Main render flag
+  int flg_render_ar_outlines;             // Process the render function of outlines of AR Tags in viewport
+  int flg_render_lanes;                   // Process the render function of Lanes in viewport
+  int n_ar_tags;                          // Number of AR Tags detected
+  int n_lanes;                            // Number of Lanes detected
+
+  // style settings
+  float artag_corners[8 * auvcMaxArTags]; // Array of Points (4* num_AR tags detected)
+  float lane_corners[8 * auvcMaxLanes];   // Array of Points (4* num_AR tags detected)
+  float ar_tag_rgba[4];                   // AR Tag Outline Color
+  float lane_rgba[4];                     // Lane Outline Color
+
+  // text labels
+  int artag_numbers[auvcMaxArTags];        // Array of ar tag numbers (num_AR tags detected)
+  int lane_numbers[auvcMaxLanes];          // Array of Lane numbers (num_Lanes detected)
+};
+typedef struct auvcData_ auvcData;
+
 #endif  // MUJOCO_MJVISUALIZE_H_
