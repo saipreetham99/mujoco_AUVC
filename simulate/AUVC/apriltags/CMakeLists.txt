@@ -7,9 +7,9 @@ project(apriltags)
 set(POD_NAME apriltags)
 include(cmake/pods.cmake)
 
-file(GLOB SOURCE_FILES "src/*.cc")
+file(GLOB AR_TAGS_SOURCE_FILES "src/*.cc")
 include_directories(AprilTags . /opt/local/include)
-add_library(apriltags ${SOURCE_FILES})
+add_library(apriltags ${AR_TAGS_SOURCE_FILES})
 
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})

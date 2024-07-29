@@ -668,6 +668,8 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
   mjr_readPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
 
+
+
   // unsigned int value = color_buffer[0];
   // unsigned int red = (value & 0x00ff0000) >> 16; // extract red component (bits 16-23)
   // unsigned int green = (value & 0x0000ff00) >> 8; // extract green component (bits 8-15)

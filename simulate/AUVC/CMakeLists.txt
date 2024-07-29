@@ -15,3 +15,8 @@ add_library(Controller SHARED controller.h controller.cc)
 set_property(TARGET Controller PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_target_properties(Controller PROPERTIES COMPILE_FLAGS "-fvisibility=default")
 target_link_libraries(Controller PUBLIC mujoco::mujoco) # TODO:Test and remove this
+
+add_library(CustomTag SHARED Tags/tags.h Tags/tags.cc)
+# set_property(TARGET CustomTag PROPERTY POSITION_INDEPENDENT_CODE ON)
+# set_target_properties(CustomTag PROPERTIES COMPILE_FLAGS "-fvisibility=default")
+# target_link_libraries(CustomTag PUBLIC mujoco::mujoco) # TODO:Test and remove this

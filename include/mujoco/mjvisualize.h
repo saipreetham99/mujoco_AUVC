@@ -15,6 +15,7 @@
 #ifndef MUJOCO_MJVISUALIZE_H_
 #define MUJOCO_MJVISUALIZE_H_
 
+#include <stdbool.h>
 #include <mujoco/mjdata.h>
 #include <mujoco/mjmodel.h>
 #include <mujoco/mjtnum.h>
@@ -686,9 +687,10 @@ typedef struct mjvSceneState_ mjvSceneState;
 
 struct auvcData_ {                       // abstract data struct for all of the Sub Data
   // enable flags
-  int flg_render_overlay;                 // Main render flag
-  int flg_render_ar_outlines;             // Process the render function of outlines of AR Tags in viewport
-  int flg_render_lanes;                   // Process the render function of Lanes in viewport
+  bool flg_render_overlay;                // Main render flag
+  bool flg_render_ar_outlines;            // Process the render function of outlines of AR Tags in viewport
+  bool flg_render_lanes;                  // Process the render function of Lanes in viewport
+  bool flg_use_Serial;                    // Use Serial Data on Port XXX
   int n_ar_tags;                          // Number of AR Tags detected
   int n_lanes;                            // Number of Lanes detected
 

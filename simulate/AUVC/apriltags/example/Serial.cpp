@@ -88,7 +88,7 @@ string Serial::readBytesUntil(unsigned char until, int max_length) {
 
 // send a string
 void Serial::print(string str) const {
-  int res = ::write(m_serialPort, str.c_str(), str.length());
+  int res = write(m_serialPort, str.c_str(), str.length());
 }
 
 // send an integer

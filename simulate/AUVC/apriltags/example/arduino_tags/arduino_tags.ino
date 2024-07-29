@@ -1,7 +1,7 @@
 /*
   ArduinoTag
   Turns on an LED whenever Raspberry Pi sees an Apriltag.
- 
+
   Michael Kaess 04/13
  */
 
@@ -17,7 +17,7 @@ void setup() {
   // open serial port
   Serial.begin(115200);
   // initialize pin as output
-  pinMode(led, OUTPUT);     
+  pinMode(led, OUTPUT);
 }
 
 // runs over and over again

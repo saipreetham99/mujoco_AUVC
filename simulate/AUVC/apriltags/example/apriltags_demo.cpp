@@ -392,6 +392,7 @@ public:
     // detect April tags (requires a gray scale image)
     cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
     double t0;
+
     if (m_timing) {
       t0 = tic();
     }

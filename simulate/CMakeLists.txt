@@ -133,9 +133,17 @@ target_sources(
   PUBLIC simulate.h
   PRIVATE simulate.cc array_safety.h
 )
-target_include_directories(libsimulate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(libsimulate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+                                              ${OpenCV_INCLUDE_DIRS}
+                                              ${APRILTAG_HEADERS}
+                                              ${APRILTAG_SRCS}
+                          )
 target_compile_options(libsimulate PRIVATE ${MUJOCO_SIMULATE_COMPILE_OPTIONS})
-target_link_libraries(libsimulate PUBLIC lodepng mujoco::platform_ui_adapter mujoco::mujoco)
+target_link_libraries(libsimulate PUBLIC lodepng
+                                         mujoco::platform_ui_adapter
+                                         mujoco::mujoco
+                                         apriltags
+                     )
 target_link_options(libsimulate PRIVATE ${MUJOCO_SIMULATE_LINK_OPTIONS})
 
 if(APPLE)
