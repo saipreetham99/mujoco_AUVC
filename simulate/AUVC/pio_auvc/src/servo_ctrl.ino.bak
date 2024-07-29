@@ -1,0 +1,58 @@
+#include <Servo.h>
+
+byte servoPin1 = 9;
+byte servoPin2 = 10;
+byte servoPin3 = 11;
+byte servoPin4 = 4;
+byte servoPin5 = 5;
+byte servoPin6 = 6;
+
+Servo servo1;
+Servo servo2;
+Servo servo3;
+Servo servo4;
+Servo servo5;
+Servo servo6;
+
+void setup() {
+  
+ Serial.begin(9600);
+ servo1.attach(servoPin1);
+ servo2.attach(servoPin2);
+ servo3.attach(servoPin3);
+ servo4.attach(servoPin4);
+ servo5.attach(servoPin5);
+ servo6.attach(servoPin6);
+
+ servo1.writeMicroseconds(1500); // send "stop" signal to ESC.
+ servo2.writeMicroseconds(1500); // send "stop" signal to ESC.
+ servo3.writeMicroseconds(1500); // send "stop" signal to ESC.
+ servo4.writeMicroseconds(1500); // send "stop" signal to ESC.
+ servo5.writeMicroseconds(1500); // send "stop" signal to ESC.
+ servo6.writeMicroseconds(1500); // send "stop" signal to ESC.
+
+ delay(7000); // delay to allow the ESC to recognize the stopped signal
+}
+
+void loop() {
+  
+  Serial.println("Enter PWM signal value 1100 to 1900, 1500 to stop");
+  
+  while (Serial.available() == 0);
+  
+  int val = Serial.parseInt(); 
+  
+  if(val < 1100 || val > 1900)
+  {
+    Serial.println("not valid");
+  }
+  else
+  {
+    servo1.writeMicroseconds(val); // Send signal to ESC.
+    servo2.writeMicroseconds(val); // Send signal to ESC.
+    servo3.writeMicroseconds(val); // Send signal to ESC.
+    servo4.writeMicroseconds(val); // Send signal to ESC.
+    servo5.writeMicroseconds(val); // Send signal to ESC.
+    servo6.writeMicroseconds(val); // Send signal to ESC.
+  }
+}
