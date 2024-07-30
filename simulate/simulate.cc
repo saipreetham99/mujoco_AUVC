@@ -49,6 +49,8 @@ plug_update_t plug_controller_update;
 const char* libcontroller_filename = "libController.so";
 void *libcontroller;
 
+auvcData *camdata;
+
 plug_test_t plug_physics_test;
 plug_init_t plug_physics_init;
 plug_update_t plug_physics_update;
@@ -56,8 +58,6 @@ const char* libphysics_filename = "libRoverPhysics.so";
 void *libphysics;
 
 /* TODO: OPEN CV */
-auvcData camdata;
-unsigned char* color_buffer;
 unsigned char* gray_buffer;
 float* depth_buffer;
 unsigned char* depth8;
@@ -680,9 +680,9 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   camdata.artag_numbers[0] = 2453; // Identifier of the AR Tag
   camdata.flg_render_overlay = 1; // Identifier of the AR Tag
 
-  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
+  // mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
 
-  printf("width: %d, height: %d \n",viewport.width, viewport.height);
+  // printf("width: %d, height: %d \n",viewport.width, viewport.height);
   renderActuatorForces(sim->m_, sim->d_, opt, pert, &cam, scn); /*** AUVC ***/
 
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
@@ -762,28 +762,19 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   camdata.nrows = VIEWPORT_HEIGHT;
   camdata.ncols = VIEWPORT_HEIGHT;
 
-  auvc::processImage(&camdata, color_buffer);
+  // for(int i=0; i<VIEWPORT_HEIGHT; i++){
+  //   for(int j=0; j<VIEWPORT_WIDTH; j++){
+  //     // int index = (i * VIEWPORT_WIDTH + j) * 3;
+  //
+  //     // unsigned char r = color_buffer[index];      // Red component
+  //     // unsigned char g = color_buffer[index + 1];  // Green component
+  //     // unsigned char b = color_buffer[index + 2];  // Blue component
+  //     // printf("[%u %u %u]", r,g,b);
+  //   }
+  //   // printf("\n")
+  // }
 
-  for(int i=0; i<VIEWPORT_HEIGHT; i++){
-    for(int j=0; j<VIEWPORT_WIDTH; j++){
-      // int index = (i * VIEWPORT_WIDTH + j) * 3;
-
-      // unsigned char r = color_buffer[index];      // Red component
-      // unsigned char g = color_buffer[index + 1];  // Green component
-      // unsigned char b = color_buffer[index + 2];  // Blue component
-      // printf("[%u %u %u]", r,g,b);
-    }
-    // printf("\n")
-  }
-
-  // auto img = cv::Mat(viewport.height, viewport.width, CV_8UC3, color_buffer);
-  // cv::cvtColor(img, cv_gray_buffer, cv::COLOR_BGR2RGB, 0);
-  // cv::flip(cv_gray_buffer, cv_gray_buffer, 0);
-  // cv::cvtColor(img, cv_gray_buffer, cv::COLOR_BGR2GRAY, 0);
-  // gray_buffer = cv_gray_buffer.data;
-  // cv::imwrite("/home/rohit/rgb_img.jpg", cv_gray_buffer);
-  // cv::cvtColor(cv_gray_buffer, cv_gray_buffer, cv::COLOR_RGB2GRAY, 0);
-  // cv::waitKey(0);
+  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
 
   // mjr_drawPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
@@ -3043,6 +3034,8 @@ void Simulate::RenderLoop() {
   camdata.flg_render_lanes = 0;
   camdata.n_ar_tags = 0;
   camdata.n_lanes = 0;
+
+
   for(int i = 0; i< 4* auvcMaxArTags ;i++)
     camdata.artag_corners[i] = 0;
   for(int i = 0; i< 4* auvcMaxArTags ;i++)
@@ -3060,6 +3053,11 @@ void Simulate::RenderLoop() {
   gray_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
   depth8 = (unsigned char *)malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
   depth_buffer = (float*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 1 * sizeof(float));
+
+  if (image== nullptr) {
+    printf("cerr\n");
+  }
+
 
   frames_ = 0;
   last_fps_update_ = mj::Simulate::Clock::now();
@@ -3136,6 +3134,9 @@ void Simulate::RenderLoop() {
   free(gray_buffer);
   free(depth_buffer);
   free(depth8);
+  delete image;
+  delete image_gray;
+  delete flipped;
 }
 
 // add state to history buffer

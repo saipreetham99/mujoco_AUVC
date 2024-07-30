@@ -158,4 +158,39 @@ void TagDetection::draw(cv::Mat& image) const {
               cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255));
 }
 
+int TagDetection::draw2(cv::Mat& image, float* points) const {
+  // use corner points detected by line intersection
+  std::pair<float, float> p1 = p[0];
+  std::pair<float, float> p2 = p[1];
+  std::pair<float, float> p3 = p[2];
+  std::pair<float, float> p4 = p[3];
+
+  // plot outline
+  cv::line(image, cv::Point2f(p1.first, p1.second), cv::Point2f(p2.first, p2.second), cv::Scalar(255,0,0,0) );
+  cv::line(image, cv::Point2f(p2.first, p2.second), cv::Point2f(p3.first, p3.second), cv::Scalar(0,255,0,0) );
+  cv::line(image, cv::Point2f(p3.first, p3.second), cv::Point2f(p4.first, p4.second), cv::Scalar(0,0,255,0) );
+  cv::line(image, cv::Point2f(p4.first, p4.second), cv::Point2f(p1.first, p1.second), cv::Scalar(255,0,255,0) );
+
+  // push to buffer
+  points[0] = p1.first;
+  points[1] = p1.second;
+  points[2] = p2.first;
+  points[3] = p2.second;
+  points[4] = p3.first;
+  points[5] = p3.second;
+  points[6] = p4.first;
+  points[7] = p4.second;
+
+  // mark center
+  cv::circle(image, cv::Point2f(cxy.first, cxy.second), 8, cv::Scalar(0,0,255,0), 2);
+
+  // print ID
+  std::ostringstream strSt;
+  strSt << "#" << id;
+  cv::putText(image, strSt.str(),
+              cv::Point2f(cxy.first + 10, cxy.second + 10),
+              cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255));
+  return id;
+}
+
 } // namespace

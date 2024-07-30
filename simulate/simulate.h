@@ -28,7 +28,12 @@
 
 #include <mujoco/mjui.h>
 #include <mujoco/mujoco.h>
+#include "mujoco/mjvisualize.h"
 #include "platform_ui_adapter.h"
+
+#include <opencv2/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
 
 /*** AUVC ***/
 #include "AUVC/controller.h"
@@ -60,6 +65,7 @@ namespace mujoco {
 // same thread.
 class SimulateMutex : public std::recursive_mutex {};
 using MutexLock = std::unique_lock<std::recursive_mutex>;
+
 
 // Simulate states not contained in MuJoCo structures
 class Simulate {

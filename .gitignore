@@ -1,4 +1,5 @@
 # Don't commit binaries
+.cache
 compile_commands.json
 *.a
 *.asm

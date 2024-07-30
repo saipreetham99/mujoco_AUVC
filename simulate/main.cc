@@ -27,9 +27,12 @@
 #include <dlfcn.h> // AUVC Added this
 
 #include <mujoco/mujoco.h>
+#include "AUVC/Tags/tags.h"
 #include "glfw_adapter.h"
 #include "simulate.h"
 #include "array_safety.h"
+
+auvcData *camdata;
 
 #define MUJOCO_PLUGIN_DIR "mujoco_plugin"
 
@@ -415,6 +418,13 @@ void PhysicsLoop(mj::Simulate& sim) {
 }
 }  // namespace
 
+void cameraThread(){
+  camdata->image      = new cv::Mat(1080, 1080, CV_8UC3);
+  image_gray = new cv::Mat(1080, 1080, CV_8UC3);
+  flipped    = new cv::Mat(1080, 1080, CV_8UC3);
+
+  auvc::processImage(camdata, flipped, image, image_gray, color_buffer);
+}
 //-------------------------------------- physics_thread --------------------------------------------
 
 void PhysicsThread(mj::Simulate* sim, const char* filename) {
@@ -510,12 +520,20 @@ int main(int argc, char** argv) {
   // const char* imu_str = "/dev/ttyUSB0";
 
 
+  // TODO:Make loop faster
+  image      = new cv::Mat(1080, 1080, CV_8UC3);
+  image_gray = new cv::Mat(1080, 1080, CV_8UC3);
+  flipped    = new cv::Mat(1080, 1080, CV_8UC3);
+  // start camera thread
+  std::thread camerathreadhandle(&cameraThread);
+
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
 
   // start simulation UI loop (blocking call)
   sim->RenderLoop();
   physicsthreadhandle.join();
+  // camerathreadhandle.join();
 
   if(libcontroller != NULL) {dlclose(libcontroller);}
   if(libphysics != NULL) {dlclose(libphysics);}

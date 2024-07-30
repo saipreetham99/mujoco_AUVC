@@ -827,7 +827,6 @@ void displayOverlay(auvcData* data, const mjrContext* con){
   if(data->flg_render_ar_outlines){
     for(int i=0; i < data->n_ar_tags; i++){
       // Render AR tag outlines
-      printf("i: %d\n",i);
 
       glBegin(GL_LINES);{
         glColor4f(data->ar_tag_rgba[0],data->ar_tag_rgba[1],data->ar_tag_rgba[2],data->ar_tag_rgba[3]);
