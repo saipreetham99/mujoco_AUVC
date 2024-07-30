@@ -681,10 +681,12 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   camdata.flg_render_overlay = 1; // Identifier of the AR Tag
 
   mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
+
+  printf("width: %d, height: %d \n",viewport.width, viewport.height);
   renderActuatorForces(sim->m_, sim->d_, opt, pert, &cam, scn); /*** AUVC ***/
 
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
-  mjr_readPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
+  mjr_readPixels2(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
 
     /* { // Camera test
         std::string video_str = "/dev/video0";

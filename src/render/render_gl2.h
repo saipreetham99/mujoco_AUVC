@@ -39,6 +39,9 @@ MJAPI void mjr_setBuffer(int framebuffer, mjrContext* con);
 MJAPI void mjr_readPixels(unsigned char* rgb, float* depth,
                           mjrRect viewport, const mjrContext* con);
 
+MJAPI void mjr_readPixels2(unsigned char* rgb, float* depth,
+                          mjrRect viewport, const mjrContext* con, int width, int height);
+
 // draw pixels from client buffer to current OpenGL framebuffer
 //  viewport is in OpenGL framebuffer; client buffer starts at (0,0)
 MJAPI void mjr_drawPixels(const unsigned char* rgb, const float* depth,

@@ -132,7 +132,86 @@ static inline void flipDepthIfRequired(float* depth, mjrRect viewport, const mjr
   }
 }
 
+// read pixels from current OpenGL framebuffer to client buffer
+//  viewport is in OpenGL framebuffer; client buffer starts at (0,0)
+void mjr_readPixels2(unsigned char* rgb, float* depth,
+                    mjrRect viewport, const mjrContext* con, int width, int height) {
+  // construct mask resolve-blit
+  GLbitfield mask = (rgb ? GL_COLOR_BUFFER_BIT : 0) |
+                    (depth ? GL_DEPTH_BUFFER_BIT : 0);
 
+  // make sure we have something to do
+  if (!mask) {
+    return;
+  }
+  //use fast 4-byte alignment (default anyway) if possible
+  glPixelStorei(GL_PACK_ALIGNMENT, 1 /*4*/);
+
+  //set length of one complete row in destination data (doesn't need to equal img.cols)
+  glPixelStorei(GL_PACK_ROW_LENGTH, 1080);
+
+  // read from window
+  if (con->currentBuffer == mjFB_WINDOW) {
+    // read rgb and depth
+    if (rgb) {
+      glReadPixels(viewport.left, viewport.bottom, viewport.width, viewport.height,
+                   GL_RGB, GL_UNSIGNED_BYTE, rgb);
+    }
+    if (depth) {
+      glReadPixels(viewport.left, viewport.bottom, viewport.width, viewport.height,
+                   GL_DEPTH_COMPONENT, GL_FLOAT, depth);
+      flipDepthIfRequired(depth, viewport, con);
+    }
+  }
+
+  // read from offscreen
+  else {
+    // multisample: blit to resolve buffer and read from there
+    if (con->offSamples) {
+      // make sure blit is supported
+      if (!glBlitFramebuffer) {
+        return;
+      }
+
+      // prepare for resolve-blit
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, con->offFBO);
+      glReadBuffer(GL_COLOR_ATTACHMENT0);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, con->offFBO_r);
+      glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+      // resolve-blit
+      glBlitFramebuffer(viewport.left, viewport.bottom,
+                        viewport.left+viewport.width, viewport.bottom+viewport.height,
+                        viewport.left, viewport.bottom,
+                        viewport.left+viewport.width, viewport.bottom+viewport.height,
+                        mask, GL_NEAREST);
+
+      // read from resolved
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, con->offFBO_r);
+      glReadBuffer(GL_COLOR_ATTACHMENT0);
+    }
+
+    // no multisample: read from offscreen
+    else {
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, con->offFBO);
+      glReadBuffer(GL_COLOR_ATTACHMENT0);
+    }
+
+    // read rgb and depth
+    if (rgb) {
+      glReadPixels(viewport.left, viewport.bottom, viewport.width, viewport.height,
+                   con->readPixelFormat, GL_UNSIGNED_BYTE, rgb);
+    }
+    if (depth) {
+      glReadPixels(viewport.left, viewport.bottom, viewport.width, viewport.height,
+                   GL_DEPTH_COMPONENT, GL_FLOAT, depth);
+      flipDepthIfRequired(depth, viewport, con);
+    }
+
+    // restore currentBuffer
+    mjr_restoreBuffer(con);
+  }
+}
 
 // read pixels from current OpenGL framebuffer to client buffer
 //  viewport is in OpenGL framebuffer; client buffer starts at (0,0)
