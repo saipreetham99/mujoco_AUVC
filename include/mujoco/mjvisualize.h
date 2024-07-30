@@ -691,10 +691,11 @@ struct auvcData_ {                       // abstract data struct for all of the 
   bool flg_render_ar_outlines;            // Process the render function of outlines of AR Tags in viewport
   bool flg_render_lanes;                  // Process the render function of Lanes in viewport
   bool flg_use_Serial;                    // Use Serial Data on Port XXX
+
   int n_ar_tags;                          // Number of AR Tags detected
   int n_lanes;                            // Number of Lanes detected
 
-  // style settings
+  // Data Points
   float artag_corners[8 * auvcMaxArTags]; // Array of Points (4* num_AR tags detected)
   float lane_corners[8 * auvcMaxLanes];   // Array of Points (4* num_AR tags detected)
   float ar_tag_rgba[4];                   // AR Tag Outline Color
@@ -703,6 +704,10 @@ struct auvcData_ {                       // abstract data struct for all of the 
   // text labels
   int artag_numbers[auvcMaxArTags];        // Array of ar tag numbers (num_AR tags detected)
   int lane_numbers[auvcMaxLanes];          // Array of Lane numbers (num_Lanes detected)
+
+  // OpenCV Camera Data
+  int nrows;                               // Number of rows in each frame
+  int ncols;                               // Number of columns in each frame
 };
 typedef struct auvcData_ auvcData;
 

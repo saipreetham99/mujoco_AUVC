@@ -128,21 +128,22 @@ add_library(libsimulate STATIC $<TARGET_OBJECTS:platform_ui_adapter>)
 set_target_properties(libsimulate PROPERTIES OUTPUT_NAME simulate)
 add_library(mujoco::libsimulate ALIAS libsimulate)
 
+file(GLOB APRILTAG_HEADERS AUVC/Tags/AR_SRC/*.h)
+file(GLOB APRILTAG_SRCS AUVC/Tags/AR_SRC/*.cc)
+
 target_sources(
   libsimulate
-  PUBLIC simulate.h
-  PRIVATE simulate.cc array_safety.h
+  PUBLIC simulate.h AUVC/Tags/tags.h
+  PRIVATE simulate.cc array_safety.h AUVC/Tags/tags.cc ${APRILTAG_HEADERS} ${APRILTAG_SRCS}
 )
 target_include_directories(libsimulate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
                                               ${OpenCV_INCLUDE_DIRS}
-                                              ${APRILTAG_HEADERS}
-                                              ${APRILTAG_SRCS}
                           )
 target_compile_options(libsimulate PRIVATE ${MUJOCO_SIMULATE_COMPILE_OPTIONS})
 target_link_libraries(libsimulate PUBLIC lodepng
                                          mujoco::platform_ui_adapter
                                          mujoco::mujoco
-                                         apriltags
+                                         CustomTag
                      )
 target_link_options(libsimulate PRIVATE ${MUJOCO_SIMULATE_LINK_OPTIONS})
 
@@ -161,7 +162,11 @@ if(SIMULATE_BUILD_EXECUTABLE)
     set(SIMULATE_RESOURCE_FILES "")
   endif()
 
-  add_executable(simulate main.cc array_safety.h ${SIMULATE_RESOURCE_FILES})
+  add_executable(simulate main.cc array_safety.h ${SIMULATE_RESOURCE_FILES}
+                                                 ${APRILTAG_HEADERS}
+                                                 ${APRILTAG_SRCS}
+                                                 ${OpenCV_INCLUDE_DIRS}
+  )
   target_compile_options(simulate PUBLIC ${MUJOCO_SIMULATE_COMPILE_OPTIONS})
   if(WIN32)
     add_custom_command(
@@ -173,6 +178,10 @@ if(SIMULATE_BUILD_EXECUTABLE)
       COMMAND ${CMAKE_COMMAND} -E rm ${CMAKE_CURRENT_SOURCE_DIR}/mujoco.ico
     )
   endif()
+  target_include_directories(
+    simulate PUBLIC
+      ${OpenCV_INCLUDE_DIRS}
+  )
 
   target_link_libraries(
     simulate
@@ -181,6 +190,8 @@ if(SIMULATE_BUILD_EXECUTABLE)
     glfw
     Threads::Threads
     lodepng
+    CustomTag
+    ${OpenCV_LIBS}
   )
 
   add_dependencies(simulate RoverPhysics Controller)

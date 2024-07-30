@@ -22,9 +22,6 @@
 #include <memory>
 #include <mutex>
 #include <new>
-#include <opencv2/highgui.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/videoio.hpp>
 #include <string>
 #include <thread>
 #include <dlfcn.h> // AUVC Added this
@@ -49,11 +46,7 @@ extern "C" {
 }
 
 /*** AUVC ***/
-#include <libv4l2.h>
 #include <linux/videodev2.h>
-#include <fcntl.h>
-#include <errno.h>
-
 namespace {
 namespace mj = ::mujoco;
 namespace mju = ::mujoco::sample_util;
@@ -466,12 +459,6 @@ __attribute__((used, visibility("default"))) extern "C" void _mj_rosettaError(co
 }
 #endif
 
-double tic() {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return ((double)t.tv_sec + ((double)t.tv_usec)/1000000.);
-}
-
 // run event loop
 int main(int argc, char** argv) {
 
@@ -521,77 +508,6 @@ int main(int argc, char** argv) {
 
   // TODO: Video and IMU Stream
   // const char* imu_str = "/dev/ttyUSB0";
-
-    { // Camera test
-        std::string video_str = "/dev/video0";
-        int deviceId = 0;
-        video_str[10] = '0' + deviceId ;
-        int device = v4l2_open(video_str.c_str(), O_RDWR | O_NONBLOCK);
-        int m_exposure(-1);
-        int m_gain(-1);
-        int m_brightness(-1);
-        if (m_exposure >= 0) {
-            // not sure why, but v4l2_set_control() does not work for
-            // V4L2_CID_EXPOSURE_AUTO...
-            struct v4l2_control c;
-            c.id = V4L2_CID_EXPOSURE_AUTO;
-            c.value = 1; // 1=manual, 3=auto; V4L2_EXPOSURE_AUTO fails...
-            if (v4l2_ioctl(device, VIDIOC_S_CTRL, &c) != 0) {
-                printf("Failed to set... %s\n", strerror(errno));
-            }
-            printf("exposure: %d\n",m_exposure);
-            v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, m_exposure*6);
-        }
-        if (m_gain >= 0) {
-            printf("gain: %d\n", m_gain);;
-            v4l2_set_control(device, V4L2_CID_GAIN, m_gain*256);
-        }
-        if (m_brightness >= 0) {
-            printf("brightness: %d\n", m_brightness);
-            v4l2_set_control(device, V4L2_CID_BRIGHTNESS, m_brightness*256);
-        }
-        v4l2_close(device);
-
-        // find and open a USB camera (built in laptop camera, web cam etc)
-        auto m_cap = cv::VideoCapture(deviceId);
-        if(!m_cap.isOpened()) {
-            printf("ERROR: Can't find video device %d\n",deviceId);
-            exit(1);
-        }
-        m_cap.set(cv::CAP_PROP_FRAME_WIDTH, /*m_width*/640);
-        m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, /*m_height*/800);
-        printf("Camera successfully opened (ignore error messages above...)");
-        printf("Actual resolution: %f x %f\n", m_cap.get(cv::CAP_PROP_FRAME_WIDTH), m_cap.get(cv::CAP_PROP_FRAME_HEIGHT) );
-
-        cv::Mat image;
-        cv::Mat image_gray;
-
-        int frame = 0;
-        double last_t = tic();
-        while (true) {
-
-            // capture frame
-            m_cap >> image;
-
-            // processImage(image, image_gray);
-            cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-            // cv::imshow("Test Window", image); // OpenCV call
-
-            // print out the frame rate at which image frames are being processed
-            frame++;
-            if (frame % 10 == 0) {
-
-                double t = tic();
-                printf("fps %f\n", 10./(t-last_t));
-                last_t = t;
-            }
-
-            // exit if any key is pressed
-            if (cv::waitKey(1) >= 0) break;
-        }
-
-        return 0;
-    }
 
 
   // start physics thread

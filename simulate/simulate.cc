@@ -27,8 +27,18 @@
 #include <type_traits>
 #include <utility>
 
-/*** AUVC ***/
+/*** AUVC : AR Tags ***/
+#include <fcntl.h>
+#include <libv4l2.h>
+#include <linux/videodev2.h>
+#include <errno.h>
+#include <opencv2/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
+
+/*** AUVC : Controller ***/
 #include <dlfcn.h>
+#include "AUVC/Tags/tags.h"
 #include "AUVC/controller.h"
 #include "mujoco/mjmodel.h"
 #include "mujoco/mjtnum.h"
@@ -621,6 +631,14 @@ void renderActuatorForces(mjModel* m, mjData* d, mjvOption* opt, mjvPerturb* per
 
 }
 
+
+/*** AUVC ***/
+// double tic() {
+//   struct timeval t;
+//   gettimeofday(&t, NULL);
+//   return ((double)t.tv_sec + ((double)t.tv_usec)/1000000.);
+// }
+
 /*** AUVC ***/
 void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, mjvOption* opt, mjvPerturb* pert){
   // Refer: https://github.com/dtorre38/mujoco_opencv/blob/fa9e61fcf5fa3f7048c4aac08dde4f3b37ea1f12/utils/render_insetwindow.c#L6
@@ -668,12 +686,82 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
   mjr_readPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
 
+    /* { // Camera test
+        std::string video_str = "/dev/video0";
+        int deviceId = 0;
+        video_str[10] = '0' + deviceId ;
+        int device = v4l2_open(video_str.c_str(), O_RDWR | O_NONBLOCK);
+        int m_exposure(-1);
+        int m_gain(-1);
+        int m_brightness(-1);
+        if (m_exposure >= 0) {
+            // not sure why, but v4l2_set_control() does not work for
+            // V4L2_CID_EXPOSURE_AUTO...
+            struct v4l2_control c;
+            c.id = V4L2_CID_EXPOSURE_AUTO;
+            c.value = 1; // 1=manual, 3=auto; V4L2_EXPOSURE_AUTO fails...
+            if (v4l2_ioctl(device, VIDIOC_S_CTRL, &c) != 0) {
+                printf("Failed to set... %s\n", strerror(errno));
+            }
+            printf("exposure: %d\n",m_exposure);
+            v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, m_exposure*6);
+        }
+        if (m_gain >= 0) {
+            printf("gain: %d\n", m_gain);;
+            v4l2_set_control(device, V4L2_CID_GAIN, m_gain*256);
+        }
+        if (m_brightness >= 0) {
+            printf("brightness: %d\n", m_brightness);
+            v4l2_set_control(device, V4L2_CID_BRIGHTNESS, m_brightness*256);
+        }
+        v4l2_close(device);
+
+        // find and open a USB camera (built in laptop camera, web cam etc)
+        auto m_cap = cv::VideoCapture(deviceId);
+        if(!m_cap.isOpened()) {
+            printf("ERROR: Can't find video device %d\n",deviceId);
+            exit(1);
+        }
+        m_cap.set(cv::CAP_PROP_FRAME_WIDTH, 640); // m_width
+        m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, 800); // m_height
+        printf("Camera successfully opened (ignore error messages above...)");
+        printf("Actual resolution: %f x %f\n", m_cap.get(cv::CAP_PROP_FRAME_WIDTH), m_cap.get(cv::CAP_PROP_FRAME_HEIGHT) );
+
+        cv::Mat image;
+        cv::Mat image_gray;
+
+        int frame = 0;
+        double last_t = tic();
+        while (true) {
+
+            // capture frame
+            m_cap >> image;
+
+            // processImage(image, image_gray);
+            cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+            // cv::imshow("Test Window", image); // OpenCV call
+
+            // print out the frame rate at which image frames are being processed
+            frame++;
+            if (frame % 10 == 0) {
+
+                double t = tic();
+                printf("fps %f\n", 10./(t-last_t));
+                last_t = t;
+            }
+
+            // exit if any key is pressed
+            if (cv::waitKey(1) >= 0) break;
+        }
+    } */
 
 
-  // unsigned int value = color_buffer[0];
-  // unsigned int red = (value & 0x00ff0000) >> 16; // extract red component (bits 16-23)
-  // unsigned int green = (value & 0x0000ff00) >> 8; // extract green component (bits 8-15)
-  // unsigned int blue = value & 0x000000ff; // extract blue component (bits 0-7)
+    // Extract Data about the frame first
+  camdata.nrows = VIEWPORT_HEIGHT;
+  camdata.ncols = VIEWPORT_HEIGHT;
+
+  auvc::processImage(&camdata, color_buffer);
+
   for(int i=0; i<VIEWPORT_HEIGHT; i++){
     for(int j=0; j<VIEWPORT_WIDTH; j++){
       // int index = (i * VIEWPORT_WIDTH + j) * 3;
@@ -683,12 +771,8 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
       // unsigned char b = color_buffer[index + 2];  // Blue component
       // printf("[%u %u %u]", r,g,b);
     }
-    // printf("\n");
+    // printf("\n")
   }
-  // printf("\n");
-  // color_buffer[0] = (unsigned char)255;
-  // color_buffer[1] = (unsigned char)255;
-  // color_buffer[2] = (unsigned char)255;
 
   // auto img = cv::Mat(viewport.height, viewport.width, CV_8UC3, color_buffer);
   // cv::cvtColor(img, cv_gray_buffer, cv::COLOR_BGR2RGB, 0);
@@ -699,7 +783,7 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   // cv::cvtColor(cv_gray_buffer, cv_gray_buffer, cv::COLOR_RGB2GRAY, 0);
   // cv::waitKey(0);
 
-  mjr_drawPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
+  // mjr_drawPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
 }
 
