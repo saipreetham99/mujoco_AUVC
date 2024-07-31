@@ -49,7 +49,7 @@ plug_update_t plug_controller_update;
 const char* libcontroller_filename = "libController.so";
 void *libcontroller;
 
-auvcData *camdata;
+extern auvcData *avData;
 
 plug_test_t plug_physics_test;
 plug_init_t plug_physics_init;
@@ -58,11 +58,12 @@ const char* libphysics_filename = "libRoverPhysics.so";
 void *libphysics;
 
 /* TODO: OPEN CV */
-unsigned char* gray_buffer;
-float* depth_buffer;
-unsigned char* depth8;
+#ifndef VIEWPORT_HEIGHT
 #define VIEWPORT_HEIGHT 1080
+#endif // VIEWPORT_HEIGHT
+#ifndef VIEWPORT_WIDTH
 #define VIEWPORT_WIDTH 1080
+#endif // VIEWPORT_WIDTH
 
 #include "lodepng.h"
 #include <mujoco/mjdata.h>
@@ -661,24 +662,24 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   offscreen_cam.fixedcamid = camera_id;
 
   mjv_updateScene(sim->m_, sim->d_, opt, NULL, &offscreen_cam, mjCAT_ALL, scn);
-  camdata->flg_render_lanes = 0;
-  camdata->flg_render_ar_outlines = 1; // TODO: Fix Lane rendering
+  avData->flg_render_lanes = 0;
+  avData->flg_render_ar_outlines = 1; // TODO: Fix Lane rendering
 
-  camdata->n_ar_tags =1;
-  camdata->artag_corners[0] = -0.5; // x1,y1
-  camdata->artag_corners[1] = -0.5;
+  avData->n_ar_tags =1;
+  avData->artag_corners[0] = -0.5; // x1,y1
+  avData->artag_corners[1] = -0.5;
 
-  camdata->artag_corners[2] = 0.5; // x2,y2
-  camdata->artag_corners[3] = -0.5;
+  avData->artag_corners[2] = 0.5; // x2,y2
+  avData->artag_corners[3] = -0.5;
 
-  camdata->artag_corners[4] = 0.5; // x3,y3
-  camdata->artag_corners[5] = 0.5;
+  avData->artag_corners[4] = 0.5; // x3,y3
+  avData->artag_corners[5] = 0.5;
 
-  camdata->artag_corners[6] = -0.5; // x4,y4
-  camdata->artag_corners[7] = 0.5;
+  avData->artag_corners[6] = -0.5; // x4,y4
+  avData->artag_corners[7] = 0.5;
 
-  camdata->artag_numbers[0] = 2453; // Identifier of the AR Tag
-  camdata->flg_render_overlay = 1; // Identifier of the AR Tag
+  avData->artag_numbers[0] = 2453; // Identifier of the AR Tag
+  avData->flg_render_overlay = 1; // Identifier of the AR Tag
 
   // mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
 
@@ -686,95 +687,32 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   renderActuatorForces(sim->m_, sim->d_, opt, pert, &cam, scn); /*** AUVC ***/
 
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
-  mjr_readPixels2(camdata->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
-
-    /* { // Camera test
-        std::string video_str = "/dev/video0";
-        int deviceId = 0;
-        video_str[10] = '0' + deviceId ;
-        int device = v4l2_open(video_str.c_str(), O_RDWR | O_NONBLOCK);
-        int m_exposure(-1);
-        int m_gain(-1);
-        int m_brightness(-1);
-        if (m_exposure >= 0) {
-            // not sure why, but v4l2_set_control() does not work for
-            // V4L2_CID_EXPOSURE_AUTO...
-            struct v4l2_control c;
-            c.id = V4L2_CID_EXPOSURE_AUTO;
-            c.value = 1; // 1=manual, 3=auto; V4L2_EXPOSURE_AUTO fails...
-            if (v4l2_ioctl(device, VIDIOC_S_CTRL, &c) != 0) {
-                printf("Failed to set... %s\n", strerror(errno));
-            }
-            printf("exposure: %d\n",m_exposure);
-            v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, m_exposure*6);
-        }
-        if (m_gain >= 0) {
-            printf("gain: %d\n", m_gain);;
-            v4l2_set_control(device, V4L2_CID_GAIN, m_gain*256);
-        }
-        if (m_brightness >= 0) {
-            printf("brightness: %d\n", m_brightness);
-            v4l2_set_control(device, V4L2_CID_BRIGHTNESS, m_brightness*256);
-        }
-        v4l2_close(device);
-
-        // find and open a USB camera (built in laptop camera, web cam etc)
-        auto m_cap = cv::VideoCapture(deviceId);
-        if(!m_cap.isOpened()) {
-            printf("ERROR: Can't find video device %d\n",deviceId);
-            exit(1);
-        }
-        m_cap.set(cv::CAP_PROP_FRAME_WIDTH, 640); // m_width
-        m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, 800); // m_height
-        printf("Camera successfully opened (ignore error messages above...)");
-        printf("Actual resolution: %f x %f\n", m_cap.get(cv::CAP_PROP_FRAME_WIDTH), m_cap.get(cv::CAP_PROP_FRAME_HEIGHT) );
-
-        cv::Mat image;
-        cv::Mat image_gray;
-
-        int frame = 0;
-        double last_t = tic();
-        while (true) {
-
-            // capture frame
-            m_cap >> image;
-
-            // processImage(image, image_gray);
-            cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-            // cv::imshow("Test Window", image); // OpenCV call
-
-            // print out the frame rate at which image frames are being processed
-            frame++;
-            if (frame % 10 == 0) {
-
-                double t = tic();
-                printf("fps %f\n", 10./(t-last_t));
-                last_t = t;
-            }
-
-            // exit if any key is pressed
-            if (cv::waitKey(1) >= 0) break;
-        }
-    } */
+  mjr_readPixels2(avData->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
 
 
-    // Extract Data about the frame first
-  camdata->nrows = VIEWPORT_HEIGHT;
-  camdata->ncols = VIEWPORT_HEIGHT;
+  // Extract Data about the frame first
+  avData->nrows = VIEWPORT_HEIGHT;
+  avData->ncols = VIEWPORT_HEIGHT;
 
-  // for(int i=0; i<VIEWPORT_HEIGHT; i++){
-  //   for(int j=0; j<VIEWPORT_WIDTH; j++){
-  //     // int index = (i * VIEWPORT_WIDTH + j) * 3;
-  //
-  //     // unsigned char r = color_buffer[index];      // Red component
-  //     // unsigned char g = color_buffer[index + 1];  // Green component
-  //     // unsigned char b = color_buffer[index + 2];  // Blue component
-  //     // printf("[%u %u %u]", r,g,b);
-  //   }
-  //   // printf("\n")
-  // }
+  if (bufferReady.load(std::memory_order_acquire)) {
+    // Lock the buffer and read data
+    {
+      std::lock_guard<std::mutex> lock(camMutex);
+      for (int i = 0; i < avData->n_ar_tags; ++i) {
+        printf("points %f",avData->artag_corners[i]);
+      }
+        printf("\n");
+    }
 
-  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),camdata);
+    // Reset the atomic flag to indicate buffer has been processed
+    bufferReady.store(false, std::memory_order_release);
+    bufferProcessed.store(true, std::memory_order_release);
+
+    // Notify the camera thread that the buffer has been processed
+    bufferCV.notify_one();
+  }
+
+  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),avData);
 
   // mjr_drawPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
@@ -2816,7 +2754,7 @@ void Simulate::Render() {
   // render scene
   mjv_updateScene(this->m_, this->d_, &opt, &pert, &cam, mjCAT_ALL, &scn);
   renderActuatorForces(m_, d_, &opt, &pert, &cam, &scn); /*** AUVC ***/
-  mjr_render(rect, &this->scn, &this->platform_ui->mjr_context(), camdata);
+  mjr_render(rect, &this->scn, &this->platform_ui->mjr_context(), avData);
 
   // show last loading error
   if (this->load_error[0]) {
@@ -3030,26 +2968,25 @@ void Simulate::RenderLoop() {
 
   /*** AUVC ***/
   // Init Camera Data for rednering lines and text in the viewport
-  camdata->flg_render_ar_outlines = 1;
-  camdata->flg_render_lanes = 0;
-  camdata->n_ar_tags = 0;
-  camdata->n_lanes = 0;
+  avData->flg_render_ar_outlines = 1;
+  avData->flg_render_lanes = 0;
+  avData->n_ar_tags = 0;
+  avData->n_lanes = 0;
 
 
   for(int i = 0; i< 4* auvcMaxArTags ;i++)
-    camdata->artag_corners[i] = 0;
+    avData->artag_corners[i] = 0;
   for(int i = 0; i< 4* auvcMaxArTags ;i++)
-    camdata->lane_corners[i] = 0;
-  camdata->ar_tag_rgba[0] = 1;
-  camdata->ar_tag_rgba[1] = 1;
-  camdata->ar_tag_rgba[2] = 1;
-  camdata->ar_tag_rgba[3] = 1;
-  camdata->lane_rgba[0] = 1;
-  camdata->lane_rgba[1] = 1;
-  camdata->lane_rgba[2] = 1;
-  camdata->lane_rgba[3] = 1;
+    avData->lane_corners[i] = 0;
+  avData->ar_tag_rgba[0] = 1;
+  avData->ar_tag_rgba[1] = 1;
+  avData->ar_tag_rgba[2] = 1;
+  avData->ar_tag_rgba[3] = 1;
+  avData->lane_rgba[0] = 1;
+  avData->lane_rgba[1] = 1;
+  avData->lane_rgba[2] = 1;
+  avData->lane_rgba[3] = 1;
   // TODO: Move Allocated buffers to main.cc or elsewhere
-  color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
 
   frames_ = 0;
   last_fps_update_ = mj::Simulate::Clock::now();
@@ -3122,13 +3059,7 @@ void Simulate::RenderLoop() {
   this->exitrequest.store(2);
   /*** AUVC ***/
 
-  free(color_buffer);
-  free(gray_buffer);
-  free(depth_buffer);
-  free(depth8);
-  delete image;
-  delete image_gray;
-  delete flipped;
+  free(avData->color_buffer);
 }
 
 // add state to history buffer

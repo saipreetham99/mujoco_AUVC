@@ -27,9 +27,8 @@
 
 #include "AR_SRC/TagDetector.h"
 
-void auvc::processImage(camData *cvData, auvcData* rawColorData){
+int auvc::processImage(camData *cvData , float pts[8]){
 
-  std::memcpy(cvData->image->data, rawColorData->color_buffer, cvData->image->rows * cvData->image->cols * cvData->image->elemSize());
   cv::cvtColor(*cvData->image, *cvData->flipped, cv::COLOR_RGB2GRAY);
   cv::flip(*cvData->flipped, *cvData->image_gray, 0);
 
@@ -52,10 +51,13 @@ void auvc::processImage(camData *cvData, auvcData* rawColorData){
     detections[i].draw2(*cvData->image,points_outline);
   }
 
+
   for (int i=0; i<8; i++) {
     printf("pts: %f\n",points_outline[i]);
   }
 
   delete m_tagDetector;
+
+  return detections.size();
 
 }

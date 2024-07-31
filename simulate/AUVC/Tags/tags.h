@@ -25,7 +25,8 @@ typedef struct ExtractedPoints_ ExtractedPoints_;
 
 namespace auvc{
 
-void processImage(camData *cvData, auvcData* rawColorData);
+int processImage(camData *cvData, float pts[8]);
+// void processImage(camData *cvData, auvcData* rawColorData);
 
 }
 #endif //AR_TAGS

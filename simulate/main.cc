@@ -27,13 +27,11 @@
 #include <dlfcn.h> // AUVC Added this
 
 #include <mujoco/mujoco.h>
-#include "AUVC/Tags/tags.h"
 #include "glfw_adapter.h"
+#include "mujoco/mjvisualize.h"
 #include "simulate.h"
 #include "array_safety.h"
-
-auvcData *avData;
-camData *cvData;
+#include "AUVC/Tags/tags.h"
 
 #define MUJOCO_PLUGIN_DIR "mujoco_plugin"
 
@@ -51,13 +49,19 @@ extern "C" {
 
 /*** AUVC ***/
 #include <linux/videodev2.h>
+auvcData avData; // helper struct for auvc Data (except cv::Mat)
+camData cvData; // helper struct to hold cv::Mat
+
+// Camera Thead
+std::mutex camMutex;
+
+std::condition_variable bufferCV;
+std::atomic<bool> bufferReady;
+std::atomic<bool> bufferProcessed;
+
 namespace {
 namespace mj = ::mujoco;
 namespace mju = ::mujoco::sample_util;
-
-cv::Mat *image;
-cv::Mat *flipped;
-cv::Mat *image_gray;
 
 // constants
 const double syncMisalign = 0.1;        // maximum mis-alignment before re-sync (simulation seconds)
@@ -423,13 +427,6 @@ void PhysicsLoop(mj::Simulate& sim) {
 }
 }  // namespace
 
-void cameraThread(){
-  cvData->image      = new cv::Mat(1080, 1080, CV_8UC3);
-  cvData->image_gray = new cv::Mat(1080, 1080, CV_8UC3);
-  cvData->flipped    = new cv::Mat(1080, 1080, CV_8UC3);
-
-  auvc::processImage(cvData, avData);
-}
 //-------------------------------------- physics_thread --------------------------------------------
 
 void PhysicsThread(mj::Simulate* sim, const char* filename) {
@@ -461,6 +458,107 @@ void PhysicsThread(mj::Simulate* sim, const char* filename) {
   // delete everything we allocated
   mj_deleteData(d);
   mj_deleteModel(m);
+}
+
+//------------------------------------------ Camera Thread --------------------------------------------------
+
+void CameraThread(){
+  for(int i =0; i<10000; i++){
+
+    /* { // Init test
+        std::string video_str = "/dev/video0";
+        int deviceId = 0;
+        video_str[10] = '0' + deviceId ;
+        int device = v4l2_open(video_str.c_str(), O_RDWR | O_NONBLOCK);
+        int m_exposure(-1);
+        int m_gain(-1);
+        int m_brightness(-1);
+        if (m_exposure >= 0) {
+            // not sure why, but v4l2_set_control() does not work for
+            // V4L2_CID_EXPOSURE_AUTO...
+            struct v4l2_control c;
+            c.id = V4L2_CID_EXPOSURE_AUTO;
+            c.value = 1; // 1=manual, 3=auto; V4L2_EXPOSURE_AUTO fails...
+            if (v4l2_ioctl(device, VIDIOC_S_CTRL, &c) != 0) {
+                printf("Failed to set... %s\n", strerror(errno));
+            }
+            printf("exposure: %d\n",m_exposure);
+            v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, m_exposure*6);
+        }
+        if (m_gain >= 0) {
+            printf("gain: %d\n", m_gain);;
+            v4l2_set_control(device, V4L2_CID_GAIN, m_gain*256);
+        }
+        if (m_brightness >= 0) {
+            printf("brightness: %d\n", m_brightness);
+            v4l2_set_control(device, V4L2_CID_BRIGHTNESS, m_brightness*256);
+        }
+        v4l2_close(device);
+
+        // find and open a USB camera (built in laptop camera, web cam etc)
+        auto m_cap = cv::VideoCapture(deviceId);
+        if(!m_cap.isOpened()) {
+            printf("ERROR: Can't find video device %d\n",deviceId);
+            exit(1);
+        }
+        m_cap.set(cv::CAP_PROP_FRAME_WIDTH, 640); // m_width
+        m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, 800); // m_height
+        printf("Camera successfully opened (ignore error messages above...)");
+        printf("Actual resolution: %f x %f\n", m_cap.get(cv::CAP_PROP_FRAME_WIDTH), m_cap.get(cv::CAP_PROP_FRAME_HEIGHT) );
+
+        cv::Mat image;
+        cv::Mat image_gray;
+
+        int frame = 0;
+        double last_t = tic();
+        while (true) {
+
+            // capture frame
+            m_cap >> image;
+
+            // processImage(image, image_gray);
+            cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+            // cv::imshow("Test Window", image); // OpenCV call
+
+            // print out the frame rate at which image frames are being processed
+            frame++;
+            if (frame % 10 == 0) {
+
+                double t = tic();
+                printf("fps %f\n", 10./(t-last_t));
+                last_t = t;
+            }
+
+            // exit if any key is pressed
+            if (cv::waitKey(1) >= 0) break;
+        }
+    } */
+
+    while (true) {
+      cvData.image = cv::Mat(cvData.image.rows, cvData.image.cols, cvData.image.type(), avData.color_buffer).clone();
+      float pts[8];
+      int npts = auvc::processImage(&cvData, pts);
+      // Simulate camera capturing data
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+      // Wait until the buffer is processed by the simulation thread
+      std::unique_lock<std::mutex> lock(camMutex);
+      bufferCV.wait(lock, [] { return bufferProcessed.load(std::memory_order_acquire); });
+
+      // Lock the buffer and write data
+      avData.n_ar_tags = npts;
+      for (int i = 0; i < avData.n_ar_tags; ++i) {
+        avData.artag_corners[i] = pts[i];  // Dummy data
+      }
+
+      // Set the atomic flag to indicate buffer is ready
+      bufferReady.store(true, std::memory_order_release);
+      bufferProcessed.store(false, std::memory_order_release);
+
+      // Notify the simulation thread that the buffer is ready
+      bufferCV.notify_one();
+    }
+  }
 }
 
 //------------------------------------------ main --------------------------------------------------
@@ -524,13 +622,27 @@ int main(int argc, char** argv) {
   // TODO: Video and IMU Stream
   // const char* imu_str = "/dev/ttyUSB0";
 
+  // TODO: Allocate before camera thread
+  #ifndef VIEWPORT_HEIGHT
+  #define VIEWPORT_HEIGHT 1080
+  #endif // VIEWPORT_HEIGHT
+  #ifndef VIEWPORT_WIDTH
+  #define VIEWPORT_WIDTH 1080
+  #endif // VIEWPORT_WIDTH
+  avData.color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
+  // for(int i=0; i<sizeof(avData->color_buffer); i++){
+  //   avData->color_buffer[i] = 0;
+  // }
 
-  // TODO:Make loop faster
-  cvData->image      = new cv::Mat(1080, 1080, CV_8UC3);
-  cvData->image_gray = new cv::Mat(1080, 1080, CV_8UC3);
-  cvData->flipped    = new cv::Mat(1080, 1080, CV_8UC3);
   // start camera thread
-  std::thread camerathreadhandle(&cameraThread);
+  // cvData.image       = cv::Mat(1080,1080, CV_8UC3);
+  // cvData.flipped     = cv::Mat(1080,1080, CV_8UC3);
+  // cvData.image_gray  = cv::Mat(1080,1080, CV_8UC1);
+  cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
+  cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
+  cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
+
+  std::thread camerathreadhandle(&CameraThread);
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
@@ -538,10 +650,12 @@ int main(int argc, char** argv) {
   // start simulation UI loop (blocking call)
   sim->RenderLoop();
   physicsthreadhandle.join();
-  // camerathreadhandle.join();
+  camerathreadhandle.join();
 
   if(libcontroller != NULL) {dlclose(libcontroller);}
   if(libphysics != NULL) {dlclose(libphysics);}
+
+  free(avData.color_buffer);
 
   return 0;
 }

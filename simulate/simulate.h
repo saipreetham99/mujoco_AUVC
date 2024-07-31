@@ -33,6 +33,7 @@
 
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv4/opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 
 /*** AUVC ***/
@@ -56,10 +57,15 @@ extern void *libphysics;
 extern plug_update_t plug_physics_update;
 
 struct camData_{ // Utility struct to hold opencv: images
-  cv::Mat *image;
-  cv::Mat *flipped;
-  cv::Mat *image_gray;
+  cv::Mat image;
+  cv::Mat flipped;
+  cv::Mat image_gray;
 }; typedef struct camData_ camData;
+
+extern std::mutex camMutex;
+extern std::condition_variable bufferCV;
+extern std::atomic<bool> bufferReady;
+extern std::atomic<bool> bufferProcessed;
 
 namespace mujoco {
 
@@ -93,7 +99,7 @@ class Simulate {
   void UpdateMesh(int meshid);
   void UpdateTexture(int texid);
 
-  // Request that the Simulate UI display a "loading" message
+  // Request that the Simulate UI display a "loading" messag
   // Called prior to Load or LoadMessageClear
   void LoadMessage(const char* displayed_filename);
 
