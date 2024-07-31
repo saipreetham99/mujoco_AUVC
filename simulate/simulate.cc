@@ -661,24 +661,24 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   offscreen_cam.fixedcamid = camera_id;
 
   mjv_updateScene(sim->m_, sim->d_, opt, NULL, &offscreen_cam, mjCAT_ALL, scn);
-  camdata.flg_render_lanes = 0;
-  camdata.flg_render_ar_outlines = 1; // TODO: Fix Lane rendering
+  camdata->flg_render_lanes = 0;
+  camdata->flg_render_ar_outlines = 1; // TODO: Fix Lane rendering
 
-  camdata.n_ar_tags =1;
-  camdata.artag_corners[0] = -0.5; // x1,y1
-  camdata.artag_corners[1] = -0.5;
+  camdata->n_ar_tags =1;
+  camdata->artag_corners[0] = -0.5; // x1,y1
+  camdata->artag_corners[1] = -0.5;
 
-  camdata.artag_corners[2] = 0.5; // x2,y2
-  camdata.artag_corners[3] = -0.5;
+  camdata->artag_corners[2] = 0.5; // x2,y2
+  camdata->artag_corners[3] = -0.5;
 
-  camdata.artag_corners[4] = 0.5; // x3,y3
-  camdata.artag_corners[5] = 0.5;
+  camdata->artag_corners[4] = 0.5; // x3,y3
+  camdata->artag_corners[5] = 0.5;
 
-  camdata.artag_corners[6] = -0.5; // x4,y4
-  camdata.artag_corners[7] = 0.5;
+  camdata->artag_corners[6] = -0.5; // x4,y4
+  camdata->artag_corners[7] = 0.5;
 
-  camdata.artag_numbers[0] = 2453; // Identifier of the AR Tag
-  camdata.flg_render_overlay = 1; // Identifier of the AR Tag
+  camdata->artag_numbers[0] = 2453; // Identifier of the AR Tag
+  camdata->flg_render_overlay = 1; // Identifier of the AR Tag
 
   // mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
 
@@ -686,7 +686,7 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   renderActuatorForces(sim->m_, sim->d_, opt, pert, &cam, scn); /*** AUVC ***/
 
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
-  mjr_readPixels2(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
+  mjr_readPixels2(camdata->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
 
     /* { // Camera test
         std::string video_str = "/dev/video0";
@@ -759,8 +759,8 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
 
 
     // Extract Data about the frame first
-  camdata.nrows = VIEWPORT_HEIGHT;
-  camdata.ncols = VIEWPORT_HEIGHT;
+  camdata->nrows = VIEWPORT_HEIGHT;
+  camdata->ncols = VIEWPORT_HEIGHT;
 
   // for(int i=0; i<VIEWPORT_HEIGHT; i++){
   //   for(int j=0; j<VIEWPORT_WIDTH; j++){
@@ -774,7 +774,7 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   //   // printf("\n")
   // }
 
-  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
+  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),camdata);
 
   // mjr_drawPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
   // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
@@ -2816,7 +2816,7 @@ void Simulate::Render() {
   // render scene
   mjv_updateScene(this->m_, this->d_, &opt, &pert, &cam, mjCAT_ALL, &scn);
   renderActuatorForces(m_, d_, &opt, &pert, &cam, &scn); /*** AUVC ***/
-  mjr_render(rect, &this->scn, &this->platform_ui->mjr_context(), &camdata);
+  mjr_render(rect, &this->scn, &this->platform_ui->mjr_context(), camdata);
 
   // show last loading error
   if (this->load_error[0]) {
@@ -3030,34 +3030,26 @@ void Simulate::RenderLoop() {
 
   /*** AUVC ***/
   // Init Camera Data for rednering lines and text in the viewport
-  camdata.flg_render_ar_outlines = 1;
-  camdata.flg_render_lanes = 0;
-  camdata.n_ar_tags = 0;
-  camdata.n_lanes = 0;
+  camdata->flg_render_ar_outlines = 1;
+  camdata->flg_render_lanes = 0;
+  camdata->n_ar_tags = 0;
+  camdata->n_lanes = 0;
 
 
   for(int i = 0; i< 4* auvcMaxArTags ;i++)
-    camdata.artag_corners[i] = 0;
+    camdata->artag_corners[i] = 0;
   for(int i = 0; i< 4* auvcMaxArTags ;i++)
-    camdata.lane_corners[i] = 0;
-  camdata.ar_tag_rgba[0] = 1;
-  camdata.ar_tag_rgba[1] = 1;
-  camdata.ar_tag_rgba[2] = 1;
-  camdata.ar_tag_rgba[3] = 1;
-  camdata.lane_rgba[0] = 1;
-  camdata.lane_rgba[1] = 1;
-  camdata.lane_rgba[2] = 1;
-  camdata.lane_rgba[3] = 1;
-  // Allocate buffers
+    camdata->lane_corners[i] = 0;
+  camdata->ar_tag_rgba[0] = 1;
+  camdata->ar_tag_rgba[1] = 1;
+  camdata->ar_tag_rgba[2] = 1;
+  camdata->ar_tag_rgba[3] = 1;
+  camdata->lane_rgba[0] = 1;
+  camdata->lane_rgba[1] = 1;
+  camdata->lane_rgba[2] = 1;
+  camdata->lane_rgba[3] = 1;
+  // TODO: Move Allocated buffers to main.cc or elsewhere
   color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
-  gray_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
-  depth8 = (unsigned char *)malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
-  depth_buffer = (float*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 1 * sizeof(float));
-
-  if (image== nullptr) {
-    printf("cerr\n");
-  }
-
 
   frames_ = 0;
   last_fps_update_ = mj::Simulate::Clock::now();

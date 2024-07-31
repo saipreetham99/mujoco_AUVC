@@ -32,7 +32,8 @@
 #include "simulate.h"
 #include "array_safety.h"
 
-auvcData *camdata;
+auvcData *avData;
+camData *cvData;
 
 #define MUJOCO_PLUGIN_DIR "mujoco_plugin"
 
@@ -53,6 +54,10 @@ extern "C" {
 namespace {
 namespace mj = ::mujoco;
 namespace mju = ::mujoco::sample_util;
+
+cv::Mat *image;
+cv::Mat *flipped;
+cv::Mat *image_gray;
 
 // constants
 const double syncMisalign = 0.1;        // maximum mis-alignment before re-sync (simulation seconds)
@@ -419,11 +424,11 @@ void PhysicsLoop(mj::Simulate& sim) {
 }  // namespace
 
 void cameraThread(){
-  camdata->image      = new cv::Mat(1080, 1080, CV_8UC3);
-  image_gray = new cv::Mat(1080, 1080, CV_8UC3);
-  flipped    = new cv::Mat(1080, 1080, CV_8UC3);
+  cvData->image      = new cv::Mat(1080, 1080, CV_8UC3);
+  cvData->image_gray = new cv::Mat(1080, 1080, CV_8UC3);
+  cvData->flipped    = new cv::Mat(1080, 1080, CV_8UC3);
 
-  auvc::processImage(camdata, flipped, image, image_gray, color_buffer);
+  auvc::processImage(cvData, avData);
 }
 //-------------------------------------- physics_thread --------------------------------------------
 
@@ -521,9 +526,9 @@ int main(int argc, char** argv) {
 
 
   // TODO:Make loop faster
-  image      = new cv::Mat(1080, 1080, CV_8UC3);
-  image_gray = new cv::Mat(1080, 1080, CV_8UC3);
-  flipped    = new cv::Mat(1080, 1080, CV_8UC3);
+  cvData->image      = new cv::Mat(1080, 1080, CV_8UC3);
+  cvData->image_gray = new cv::Mat(1080, 1080, CV_8UC3);
+  cvData->flipped    = new cv::Mat(1080, 1080, CV_8UC3);
   // start camera thread
   std::thread camerathreadhandle(&cameraThread);
 

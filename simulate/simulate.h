@@ -55,6 +55,11 @@ extern const char* libphysics_filename;
 extern void *libphysics;
 extern plug_update_t plug_physics_update;
 
+struct camData_{ // Utility struct to hold opencv: images
+  cv::Mat *image;
+  cv::Mat *flipped;
+  cv::Mat *image_gray;
+}; typedef struct camData_ camData;
 
 namespace mujoco {
 

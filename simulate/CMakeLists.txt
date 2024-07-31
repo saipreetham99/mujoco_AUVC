@@ -161,6 +161,7 @@ if(SIMULATE_BUILD_EXECUTABLE)
   else()
     set(SIMULATE_RESOURCE_FILES "")
   endif()
+  find_package(OpenCV REQUIRED)
 
   add_executable(simulate main.cc array_safety.h ${SIMULATE_RESOURCE_FILES}
                                                  ${APRILTAG_HEADERS}

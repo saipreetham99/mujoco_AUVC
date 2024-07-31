@@ -88,4 +88,4 @@ set(MUJOCO_ENGINE_SRCS
     engine_vis_visualize.h
 )
 
-target_sources(mujoco PRIVATE ${MUJOCO_ENGINE_SRCS})
+target_sources(mujoco PRIVATE ${MUJOCO_ENGINE_SRCS} ${OpenCV_INCLUDE_DIRS})

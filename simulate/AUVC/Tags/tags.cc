@@ -27,11 +27,11 @@
 
 #include "AR_SRC/TagDetector.h"
 
-void auvc::processImage(auvcData *data, cv::Mat* flipped, cv::Mat* image, cv::Mat* image_gray, unsigned char* color_buffer){
+void auvc::processImage(camData *cvData, auvcData* rawColorData){
 
-  std::memcpy(image->data, color_buffer, image->rows * image->cols * image->elemSize());
-  cv::cvtColor(*image, *flipped, cv::COLOR_RGB2GRAY);
-  cv::flip(*flipped, *image_gray, 0);
+  std::memcpy(cvData->image->data, rawColorData->color_buffer, cvData->image->rows * cvData->image->cols * cvData->image->elemSize());
+  cv::cvtColor(*cvData->image, *cvData->flipped, cv::COLOR_RGB2GRAY);
+  cv::flip(*cvData->flipped, *cvData->image_gray, 0);
 
   // printf("rows %d : cols %du\n",image.rows, image.cols);
   // printf("img.step/img.elemSize() : %zu\n",image.step/image.elemSize());
@@ -42,14 +42,14 @@ void auvc::processImage(auvcData *data, cv::Mat* flipped, cv::Mat* image, cv::Ma
   AprilTags::TagDetector* m_tagDetector(NULL);
   m_tagDetector = new AprilTags::TagDetector(AprilTags::tagCodes36h11);
 
-  vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(*image_gray);
+  vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(*cvData->image_gray);
   printf("Number of Tags detected = %zu\n", detections.size());
 
   float points_outline[8] = {0};
   for (int i=0; i<detections.size(); i++) {
     // TODO: Get Detection Angle, position etc
     printf("Id: %d, Hamming %d\n",detections[i].id, detections[i].hammingDistance);
-    detections[i].draw2(*image,points_outline);
+    detections[i].draw2(*cvData->image,points_outline);
   }
 
   for (int i=0; i<8; i++) {

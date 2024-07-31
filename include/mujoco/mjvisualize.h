@@ -19,10 +19,6 @@
 #include <mujoco/mjdata.h>
 #include <mujoco/mjmodel.h>
 #include <mujoco/mjtnum.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/videoio.hpp>
-
 
 #define mjNGROUP        6         // number of geom, site, joint, skin groups with visflags
 #define mjMAXLIGHT      100       // maximum number of lights in a scene
@@ -713,9 +709,6 @@ struct auvcData_ {                       // abstract data struct for all of the 
   int ncols;                               // Number of columns in each frame
 
   // Opencv utility
-  cv::Mat *image;
-  cv::Mat *flipped;
-  cv::Mat *image_gray;
   unsigned char* color_buffer;
 };
 typedef struct auvcData_ auvcData;

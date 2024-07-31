@@ -1,8 +1,19 @@
-#ifndef AR_TAGS
-#define AR_TAGS
-
 #include <mujoco/mujoco.h>
 #include <opencv2/opencv.hpp>
+
+#ifndef MUJOCO_SIMULATE_SIMULATE_H_
+#define MUJOCO_SIMULATE_SIMULATE_H_
+struct camData_{ // Utility struct to hold opencv: images
+  cv::Mat *image;
+  cv::Mat *flipped;
+  cv::Mat *image_gray;
+}; typedef struct camData_ camData;
+
+
+
+#endif // MUJOCO_SIMULATE_SIMULATE_H_
+#ifndef AR_TAGS
+#define AR_TAGS
 
 #define maxPoints 100
 
@@ -14,6 +25,7 @@ typedef struct ExtractedPoints_ ExtractedPoints_;
 
 namespace auvc{
 
-void processImage(auvcData *data, cv::Mat* flipped, cv::Mat* image, cv::Mat* image_gray, unsigned char* color_buffer);
+void processImage(camData *cvData, auvcData* rawColorData);
+
 }
 #endif //AR_TAGS
