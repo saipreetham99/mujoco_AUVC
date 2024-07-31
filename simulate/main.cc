@@ -35,6 +35,13 @@
 
 #define MUJOCO_PLUGIN_DIR "mujoco_plugin"
 
+#ifndef VIEWPORT_HEIGHT
+#define VIEWPORT_HEIGHT 1080
+#endif // VIEWPORT_HEIGHT
+#ifndef VIEWPORT_WIDTH
+#define VIEWPORT_WIDTH 1080
+#endif // VIEWPORT_WIDTH
+
 extern "C" {
 #if defined(_WIN32) || defined(__CYGWIN__)
   #include <windows.h>
@@ -49,11 +56,11 @@ extern "C" {
 
 /*** AUVC ***/
 #include <linux/videodev2.h>
-auvcData avData; // helper struct for auvc Data (except cv::Mat)
-camData cvData; // helper struct to hold cv::Mat
+static auvcData* avData; // helper struct for auvc Data (except cv::Mat)
+static unsigned char* internal_color_buffer;
 
 // Camera Thead
-std::mutex camMutex;
+
 
 std::condition_variable bufferCV;
 std::atomic<bool> bufferReady;
@@ -462,7 +469,7 @@ void PhysicsThread(mj::Simulate* sim, const char* filename) {
 
 //------------------------------------------ Camera Thread --------------------------------------------------
 
-void CameraThread(){
+void CameraThread(mj::Simulate* sim, auvcData* avData, unsigned char* internal_color_buffer){
   for(int i =0; i<10000; i++){
 
     /* { // Init test
@@ -534,29 +541,44 @@ void CameraThread(){
         }
     } */
 
-    while (true) {
-      cvData.image = cv::Mat(cvData.image.rows, cvData.image.cols, cvData.image.type(), avData.color_buffer).clone();
-      float pts[8];
-      int npts = auvc::processImage(&cvData, pts);
-      // Simulate camera capturing data
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    while(!sim->exitrequest.load()) {
+      if(sim->camSync.load() == 1) {
+        printf("Not Locked yet\n");
+        {
+          if (avData->color_buffer == NULL) {
+            printf("Invalid buffer\n");
+            return;
+          }
 
-      // Wait until the buffer is processed by the simulation thread
-      std::unique_lock<std::mutex> lock(camMutex);
-      bufferCV.wait(lock, [] { return bufferProcessed.load(std::memory_order_acquire); });
+          const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
+          // cv::Mat image(1080, 1080, CV_8UC3, avData.color_buffer);
+          // cv::Mat image_gray(1080, 1080, CV_8UC3, avData.color_buffer);
+          // cv::Mat flipped(1080, 1080, CV_8UC3, avData.color_buffer);
+          float pts[8];
+          // Copy data using a loop
+          for (int i = 0; i < VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3; i++) {
+            internal_color_buffer[i] = avData->color_buffer[i];
+          }
+          int npts = auvc::processImage(internal_color_buffer, pts);
 
-      // Lock the buffer and write data
-      avData.n_ar_tags = npts;
-      for (int i = 0; i < avData.n_ar_tags; ++i) {
-        avData.artag_corners[i] = pts[i];  // Dummy data
+          // Simulate camera capturing data
+          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+          // Write data
+          avData->n_ar_tags = npts;
+          for (int i = 0; i < avData->n_ar_tags; ++i) {
+            avData->artag_corners[i] = pts[i];  // Dummy data
+          }
+          // Notify the camera thread that the buffer has been processed
+          sim->camSync.store(0);
+          sim->cond_camSync.notify_all();
+          // sim->cond_camSync.wait(lock, [&]() { return sim->camSync == 1; });
+        }
+        printf("UnLocked\n");
       }
-
-      // Set the atomic flag to indicate buffer is ready
-      bufferReady.store(true, std::memory_order_release);
-      bufferProcessed.store(false, std::memory_order_release);
-
-      // Notify the simulation thread that the buffer is ready
-      bufferCV.notify_one();
+      // else{
+      //   // printf("buffer not ready!\n");
+      // }
     }
   }
 }
@@ -623,39 +645,59 @@ int main(int argc, char** argv) {
   // const char* imu_str = "/dev/ttyUSB0";
 
   // TODO: Allocate before camera thread
-  #ifndef VIEWPORT_HEIGHT
-  #define VIEWPORT_HEIGHT 1080
-  #endif // VIEWPORT_HEIGHT
-  #ifndef VIEWPORT_WIDTH
-  #define VIEWPORT_WIDTH 1080
-  #endif // VIEWPORT_WIDTH
-  avData.color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
-  // for(int i=0; i<sizeof(avData->color_buffer); i++){
-  //   avData->color_buffer[i] = 0;
-  // }
+
+  /*** AUVC ***/
+  avData = (auvcData*)malloc(sizeof(auvcData));
+  avData->flg_render_ar_outlines = 1;
+  avData->flg_render_lanes = 0;
+  avData->n_ar_tags = 0;
+  avData->n_lanes = 0;
+  for(int i = 0; i< 4* auvcMaxArTags ;i++)
+    avData->artag_corners[i] = 0;
+  for(int i = 0; i< 4* auvcMaxArTags ;i++)
+    avData->lane_corners[i] = 0;
+  avData->ar_tag_rgba[0] = 1;
+  avData->ar_tag_rgba[1] = 1;
+  avData->ar_tag_rgba[2] = 1;
+  avData->ar_tag_rgba[3] = 1;
+  avData->lane_rgba[0] = 1;
+  avData->lane_rgba[1] = 1;
+  avData->lane_rgba[2] = 1;
+  avData->lane_rgba[3] = 1;
+
+  avData->color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
+  internal_color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
+  // Initialize avData.color_buffer with some data
+  for (int i = 0; i < VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3; i++) {
+    avData->color_buffer[i] = (unsigned char)(i % 256); // Example data
+    internal_color_buffer[i] = (unsigned char)(i % 256); // Example data
+  }
 
   // start camera thread
   // cvData.image       = cv::Mat(1080,1080, CV_8UC3);
   // cvData.flipped     = cv::Mat(1080,1080, CV_8UC3);
   // cvData.image_gray  = cv::Mat(1080,1080, CV_8UC1);
-  cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
-  cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
-  cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
+  // cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
+  // cvData.image = cv::Mat(1080,1080, CV_8UC3, avData.color_buffer);
+  // cv::Mat image(1080, 1080, CV_8UC3, &avData->color_buffer);
+  // cv::Mat image_gray(1080, 1080, CV_8UC3, &avData->color_buffer);
+  // cv::Mat flipped(1080, 1080, CV_8UC3, &avData->color_buffer);
 
-  std::thread camerathreadhandle(&CameraThread);
+  std::thread camerathreadhandle(&CameraThread,sim.get(), avData, internal_color_buffer);
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
 
   // start simulation UI loop (blocking call)
-  sim->RenderLoop();
+  sim->RenderLoop(avData);
   physicsthreadhandle.join();
   camerathreadhandle.join();
 
   if(libcontroller != NULL) {dlclose(libcontroller);}
   if(libphysics != NULL) {dlclose(libphysics);}
 
-  free(avData.color_buffer);
+  free(avData->color_buffer);
+  free(internal_color_buffer);
 
   return 0;
 }

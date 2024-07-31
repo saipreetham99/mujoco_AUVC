@@ -26,6 +26,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <mutex>
 
 /*** AUVC : AR Tags ***/
 #include <fcntl.h>
@@ -49,13 +50,14 @@ plug_update_t plug_controller_update;
 const char* libcontroller_filename = "libController.so";
 void *libcontroller;
 
-extern auvcData *avData;
-
 plug_test_t plug_physics_test;
 plug_init_t plug_physics_init;
 plug_update_t plug_physics_update;
 const char* libphysics_filename = "libRoverPhysics.so";
 void *libphysics;
+
+auvcData *_avData;
+
 
 /* TODO: OPEN CV */
 #ifndef VIEWPORT_HEIGHT
@@ -662,60 +664,69 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   offscreen_cam.fixedcamid = camera_id;
 
   mjv_updateScene(sim->m_, sim->d_, opt, NULL, &offscreen_cam, mjCAT_ALL, scn);
-  avData->flg_render_lanes = 0;
-  avData->flg_render_ar_outlines = 1; // TODO: Fix Lane rendering
 
-  avData->n_ar_tags =1;
-  avData->artag_corners[0] = -0.5; // x1,y1
-  avData->artag_corners[1] = -0.5;
-
-  avData->artag_corners[2] = 0.5; // x2,y2
-  avData->artag_corners[3] = -0.5;
-
-  avData->artag_corners[4] = 0.5; // x3,y3
-  avData->artag_corners[5] = 0.5;
-
-  avData->artag_corners[6] = -0.5; // x4,y4
-  avData->artag_corners[7] = 0.5;
-
-  avData->artag_numbers[0] = 2453; // Identifier of the AR Tag
-  avData->flg_render_overlay = 1; // Identifier of the AR Tag
-
-  // mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),&camdata);
+  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),NULL);
 
   // printf("width: %d, height: %d \n",viewport.width, viewport.height);
   renderActuatorForces(sim->m_, sim->d_, opt, pert, &cam, scn); /*** AUVC ***/
 
-  // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
-  mjr_readPixels2(avData->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
+  // Set frame data first
+  _avData->nrows = sim->avData->nrows = VIEWPORT_HEIGHT;
+  _avData->ncols = sim->avData->ncols = VIEWPORT_HEIGHT;
 
+  _avData->flg_render_ar_outlines = sim->avData->flg_render_ar_outlines = 1;
+  _avData->flg_render_lanes = sim->avData->flg_render_lanes = 0;
+  _avData->n_ar_tags = sim->avData->n_ar_tags = 0;
+  _avData->n_lanes = sim->avData->n_lanes = 0;
 
-  // Extract Data about the frame first
-  avData->nrows = VIEWPORT_HEIGHT;
-  avData->ncols = VIEWPORT_HEIGHT;
+  for(int i = 0; i< 4* auvcMaxArTags ;i++)
+    _avData->artag_corners[i] = sim->avData->artag_corners[i] = 0;
+  for(int i = 0; i< 4* auvcMaxLanes ;i++)
+    _avData->lane_corners[i] = sim->avData->lane_corners[i] = 0;
 
-  if (bufferReady.load(std::memory_order_acquire)) {
-    // Lock the buffer and read data
-    {
-      std::lock_guard<std::mutex> lock(camMutex);
-      for (int i = 0; i < avData->n_ar_tags; ++i) {
-        printf("points %f",avData->artag_corners[i]);
-      }
-        printf("\n");
-    }
+  _avData->ar_tag_rgba[0] = sim->avData->ar_tag_rgba[0] = 1;
+  _avData->ar_tag_rgba[1] = sim->avData->ar_tag_rgba[1] = 1;
+  _avData->ar_tag_rgba[2] = sim->avData->ar_tag_rgba[2] = 1;
+  _avData->ar_tag_rgba[3] = sim->avData->ar_tag_rgba[3] = 1;
+  _avData->lane_rgba[0] =   sim->avData->lane_rgba[0] = 1;
+  _avData->lane_rgba[1] =   sim->avData->lane_rgba[1] = 1;
+  _avData->lane_rgba[2] =   sim->avData->lane_rgba[2] = 1;
+  _avData->lane_rgba[3] =   sim->avData->lane_rgba[3] = 1;
 
-    // Reset the atomic flag to indicate buffer has been processed
-    bufferReady.store(false, std::memory_order_release);
-    bufferProcessed.store(true, std::memory_order_release);
-
-    // Notify the camera thread that the buffer has been processed
-    bufferCV.notify_one();
+  for(int i=0; i < (VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char)); i++){
+    _avData->color_buffer[i] = sim->avData->color_buffer[i]; // copy data
   }
 
-  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),avData);
 
-  // mjr_drawPixels(color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context());
-  // glDrawPixels(viewport.width, viewport.height, GL_BGR, GL_UNSIGNED_BYTE, color_buffer);
+  mjr_readPixels2(_avData->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
+  if(sim->camSync.load() == 0){ // Lock the buffer and read data
+
+    printf("camMutex Locked in ShowSubCAM\n");
+    mujoco::MutexLock lock(sim->mtx);
+    // sim->camMutex.lock();
+
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    mjr_readPixels2(_avData->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
+
+
+    // // Set frame data first
+    // sim->avData->nrows = VIEWPORT_HEIGHT;
+    // sim->avData->ncols = VIEWPORT_HEIGHT;
+
+    // sim->cond_camSync.wait(lock, [&]() { return sim->camSync == 1; });
+    printf("Sucessfully Acquired Points from CAM\n");
+
+    mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),_avData);
+
+    // Notify the camera thread that the buffer has been processed
+    sim->camSync.store(1);
+    sim->cond_camSync.notify_all();
+    sim->cond_camSync.wait(lock, [&sim]() { return sim->camSync == 0; });
+  }
+
+
+  // Notify the camera thread that the buffer has been processed
+
 }
 
 // load state from history buffer
@@ -2895,7 +2906,7 @@ void Simulate::Render() {
 
 
 
-void Simulate::RenderLoop() {
+void Simulate::RenderLoop(auvcData* avD) {
   // Set timer callback (milliseconds)
   mjcb_time = Timer;
 
@@ -2966,27 +2977,10 @@ void Simulate::RenderLoop() {
   // set VSync to initial value
   this->platform_ui->SetVSync(this->vsync);
 
-  /*** AUVC ***/
-  // Init Camera Data for rednering lines and text in the viewport
-  avData->flg_render_ar_outlines = 1;
-  avData->flg_render_lanes = 0;
-  avData->n_ar_tags = 0;
-  avData->n_lanes = 0;
-
-
-  for(int i = 0; i< 4* auvcMaxArTags ;i++)
-    avData->artag_corners[i] = 0;
-  for(int i = 0; i< 4* auvcMaxArTags ;i++)
-    avData->lane_corners[i] = 0;
-  avData->ar_tag_rgba[0] = 1;
-  avData->ar_tag_rgba[1] = 1;
-  avData->ar_tag_rgba[2] = 1;
-  avData->ar_tag_rgba[3] = 1;
-  avData->lane_rgba[0] = 1;
-  avData->lane_rgba[1] = 1;
-  avData->lane_rgba[2] = 1;
-  avData->lane_rgba[3] = 1;
-  // TODO: Move Allocated buffers to main.cc or elsewhere
+  this->avData = avD;
+  auvcData av_newData;
+  _avData = &av_newData;
+  _avData->color_buffer = (unsigned char*) malloc(VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char));
 
   frames_ = 0;
   last_fps_update_ = mj::Simulate::Clock::now();
@@ -3056,10 +3050,9 @@ void Simulate::RenderLoop() {
     mjv_freeSceneState(&scnstate_);
   }
 
-  this->exitrequest.store(2);
   /*** AUVC ***/
-
-  free(avData->color_buffer);
+  free(_avData->color_buffer);
+  this->exitrequest.store(2);
 }
 
 // add state to history buffer

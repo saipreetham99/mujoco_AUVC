@@ -62,11 +62,6 @@ struct camData_{ // Utility struct to hold opencv: images
   cv::Mat image_gray;
 }; typedef struct camData_ camData;
 
-extern std::mutex camMutex;
-extern std::condition_variable bufferCV;
-extern std::atomic<bool> bufferReady;
-extern std::atomic<bool> bufferProcessed;
-
 namespace mujoco {
 
 // The viewer itself doesn't require a reentrant mutex, however we use it in
@@ -123,7 +118,8 @@ class Simulate {
   void Render();
 
   // loop to render the UI (must be called from main thread because of MacOS)
-  void RenderLoop();
+  // void RenderLoop();
+  void RenderLoop(auvcData* avD);
 
   // add state to history buffer
   void AddToHistory();
@@ -205,11 +201,17 @@ class Simulate {
   } pending_ = {};
 
   SimulateMutex mtx;
+
   std::condition_variable_any cond_loadrequest;
 
   /*** AUVC ***/
+  // Controller
   std::condition_variable_any cond_reload_plug_bool;
   std::atomic_int reload_plug_bool = 0;
+  // Camera
+  auvcData *avData;
+  std::condition_variable_any cond_camSync;
+  std::atomic_int camSync = 0;
 
   int frames_ = 0;
   std::chrono::time_point<Clock> last_fps_update_;

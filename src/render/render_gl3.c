@@ -1536,7 +1536,7 @@ void mjr_render(mjrRect viewport, mjvScene* scn, const mjrContext* con, auvcData
     glDisable(GL_SCISSOR_TEST);
   }
 
-  if(data->flg_render_overlay){displayOverlay(data,con);}
+  if(data && data->flg_render_overlay){displayOverlay(data,con);}
 
   // restore currentBuffer
   mjr_restoreBuffer(con);
