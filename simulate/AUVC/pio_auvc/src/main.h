@@ -1,15 +1,23 @@
 #ifndef CAMERA_SUB_H
 #define CAMERA_SUB_H
 
-const byte m1 = 9;
-const byte m2 = 10;
-const byte m3 = 12;
-const byte m4 = 4;
-const byte m5 = 5;
-const byte m6 = 6;
+#include "MS5837.h"
+
+const byte mPin1 = 9;
+const byte mPin2 = 10;
+const byte mPin3 = 12;
+const byte mPin4 = 4;
+const byte mPin5 = 5;
+const byte mPin6 = 6;
 const byte LedPin = 26;
 const byte camServo = 26;
 
-int setupMotors();
+static float kp = 1.5;
+static float ki = 0.00005;
+static float kd = 0.00005;
+
+MS5837 sensor;
+
+int setupMotorsAndLed();
 
 #endif // CAMERA_SUB_H

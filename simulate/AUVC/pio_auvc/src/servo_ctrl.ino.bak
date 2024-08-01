@@ -28,7 +28,7 @@ void forward(int val){
 		servo2.writeMicroseconds(val); // Send signal to ESC.
 		delay(5000);
 		servo2.writeMicroseconds(1500); // Send signal to ESC.
-	
+
 		servo3.writeMicroseconds(val); // Send signal to ESC.
 		delay(5000);
 		servo3.writeMicroseconds(1500); // Send signal to ESC.
@@ -36,7 +36,7 @@ void forward(int val){
 		servo4.writeMicroseconds(val); // Send signal to ESC.
 		delay(5000);
 		servo4.writeMicroseconds(1500); // Send signal to ESC.
-		
+
 		servo5.writeMicroseconds(val); // Send signal to ESC.
 		delay(5000);
 		servo5.writeMicroseconds(1500); // Send signal to ESC.
@@ -74,7 +74,7 @@ void loop() {
 
 	while (Serial.available() == 0);
 
-	int val = Serial.parseInt(); 
+	int val = Serial.parseInt();
 	//int val = 1100;
 	if(val < 1100 || val > 1900)
 	{
