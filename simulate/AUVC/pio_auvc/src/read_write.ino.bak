@@ -7,7 +7,6 @@ void loop() {
     char receivedChar = Serial.read();  // Read the incoming byte
     Serial.print(receivedChar);         // Echo the received byte
   }
-  
+
   delay(10);  // Small delay to prevent overwhelming the serial buffer
 }
-
