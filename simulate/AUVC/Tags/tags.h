@@ -1,3 +1,4 @@
+#include "AR_SRC/TagDetector.h"
 #include <mujoco/mujoco.h>
 #include <opencv2/opencv.hpp>
 

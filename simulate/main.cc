@@ -33,6 +33,10 @@
 #include "array_safety.h"
 #include "AUVC/Tags/tags.h"
 
+#include "AUVC/Tags/AR_SRC/TagDetector.h"
+#include "AUVC/Tags/AR_SRC/Tag36h11.h"
+AprilTags::TagDetector* m_tagDetector(NULL);
+
 #define MUJOCO_PLUGIN_DIR "mujoco_plugin"
 
 #ifndef VIEWPORT_HEIGHT
@@ -41,6 +45,9 @@
 #ifndef VIEWPORT_WIDTH
 #define VIEWPORT_WIDTH 1080
 #endif // VIEWPORT_WIDTH
+
+
+static bool initialize_controller_reload;
 
 extern "C" {
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -348,6 +355,15 @@ void PhysicsLoop(mj::Simulate& sim) {
       // lock the sim mutex
       const std::unique_lock<std::recursive_mutex> lock(sim.mtx);
 
+      // do-while loop
+      if(!initialize_controller_reload) {
+        initialize_controller_reload = true;;
+        plug_controller_init(m,d);
+        // Code to be executed
+        std::cout << "This will run only once." << std::endl;
+        // Modify the condition to ensure the loop runs only once
+      } while (initialize_controller_reload < 1); // Condition to check
+
       // run only if model is present
       if (m) {
         // running
@@ -469,7 +485,7 @@ void PhysicsThread(mj::Simulate* sim, const char* filename) {
 
 //------------------------------------------ Camera Thread --------------------------------------------------
 
-void CameraThread(mj::Simulate* sim, auvcData* avData, unsigned char* internal_color_buffer){
+void CameraThread(mj::Simulate* sim, auvcData* avData, unsigned char* internal_color_buffer, AprilTags::TagDetector* m_tagDetector){
   for(int i =0; i<10000; i++){
 
     /* { // Init test
@@ -556,9 +572,9 @@ void CameraThread(mj::Simulate* sim, auvcData* avData, unsigned char* internal_c
           // cv::Mat flipped(1080, 1080, CV_8UC3, avData.color_buffer);
           float pts[8];
           // Copy data using a loop
-          for (int i = 0; i < VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3; i++) {
-            internal_color_buffer[i] = avData->color_buffer[i];
-          }
+          // for (int i = 0; i < VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3; i++) {
+          //   internal_color_buffer[i] = avData->color_buffer[i];
+          // }
           int npts = auvc::processImage(internal_color_buffer, pts);
 
           // Simulate camera capturing data
@@ -623,6 +639,8 @@ int main(int argc, char** argv) {
   mjvPerturb pert;
   mjv_defaultPerturb(&pert);
 
+  initialize_controller_reload = 0;
+
   // simulate object encapsulates the UI
   auto sim = std::make_unique<mj::Simulate>(
       std::make_unique<mj::GlfwAdapter>(),
@@ -683,7 +701,8 @@ int main(int argc, char** argv) {
   // cv::Mat image_gray(1080, 1080, CV_8UC3, &avData->color_buffer);
   // cv::Mat flipped(1080, 1080, CV_8UC3, &avData->color_buffer);
 
-  std::thread camerathreadhandle(&CameraThread,sim.get(), avData, internal_color_buffer);
+  m_tagDetector = new AprilTags::TagDetector(AprilTags::tagCodes36h11);
+  // std::thread camerathreadhandle(&CameraThread,sim.get(), avData, internal_color_buffer, m_tagDetector);
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
@@ -691,13 +710,14 @@ int main(int argc, char** argv) {
   // start simulation UI loop (blocking call)
   sim->RenderLoop(avData);
   physicsthreadhandle.join();
-  camerathreadhandle.join();
+  // camerathreadhandle.join();
 
   if(libcontroller != NULL) {dlclose(libcontroller);}
   if(libphysics != NULL) {dlclose(libphysics);}
 
   free(avData->color_buffer);
   free(internal_color_buffer);
+  delete m_tagDetector;
 
   return 0;
 }

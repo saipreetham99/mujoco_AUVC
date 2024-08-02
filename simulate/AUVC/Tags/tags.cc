@@ -49,12 +49,16 @@ int auvc::processImage(unsigned char* color_buffer, float pts[8]){
   printf("Number of Tags detected = %zu\n", detections.size());
 
   float points_outline[8] = {0};
+
   for (int i=0; i<detections.size(); i++) {
     // TODO: Get Detection Angle, position etc
     printf("Id: %d, Hamming %d\n",detections[i].id, detections[i].hammingDistance);
     detections[i].draw2(image,points_outline);
   }
 
+  for (int i=0; i<detections.size(); i++) {
+    pts[i] = points_outline[i];
+  }
 
   for (int i=0; i<8; i++) {
     printf("pts: %f\n",points_outline[i]);

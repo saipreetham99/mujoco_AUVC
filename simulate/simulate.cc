@@ -696,37 +696,13 @@ void ShowSubCAM(mj::Simulate* sim, mjrRect rect, mjvScene* scn, mjvCamera cam, m
   for(int i=0; i < (VIEWPORT_HEIGHT * VIEWPORT_WIDTH * 3 * sizeof(unsigned char)); i++){
     _avData->color_buffer[i] = sim->avData->color_buffer[i]; // copy data
   }
-
-
   mjr_readPixels2(_avData->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
-  if(sim->camSync.load() == 0){ // Lock the buffer and read data
 
-    printf("camMutex Locked in ShowSubCAM\n");
-    mujoco::MutexLock lock(sim->mtx);
-    // sim->camMutex.lock();
+  mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),_avData);
 
-    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    mjr_readPixels2(_avData->color_buffer, nullptr, viewport, &sim->platform_ui->mjr_context(), 360, 270);
-
-
-    // // Set frame data first
-    // sim->avData->nrows = VIEWPORT_HEIGHT;
-    // sim->avData->ncols = VIEWPORT_HEIGHT;
-
-    // sim->cond_camSync.wait(lock, [&]() { return sim->camSync == 1; });
-    printf("Sucessfully Acquired Points from CAM\n");
-
-    mjr_render(viewport, &sim->scn, &sim->platform_ui->mjr_context(),_avData);
-
-    // Notify the camera thread that the buffer has been processed
-    sim->camSync.store(1);
-    sim->cond_camSync.notify_all();
-    sim->cond_camSync.wait(lock, [&sim]() { return sim->camSync == 0; });
-  }
-
-
-  // Notify the camera thread that the buffer has been processed
-
+  // float pts[8] = {0};
+  // int npts = auvc::processImage(sim->avData->color_buffer, pts);
+  // printf("numpts = %d",npts);
 }
 
 // load state from history buffer

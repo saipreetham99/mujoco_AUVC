@@ -1,0 +1,25 @@
+
+void setup() {
+  Serial.begin(9600);  // Initialize serial communication at 9600 baud
+}
+
+void loop() {
+  Serial.print("rebooting...");
+
+  if (Serial.available() > 0) {
+    char receivedChar = Serial.read();  // Read the incoming byte
+    Serial.print(receivedChar);         // Echo the received byte
+  }
+
+  delay(2000);  // Small delay to prevent overwhelming the serial buffer
+
+  // SCB_AIRCR = 0x05FA0004;
+
+  delay(2000);  // Small delay to prevent overwhelming the serial buffer
+
+  // if(receivedChar == "0")
+  // #define SCB_AIRCR (*(volatile uint32_t *)0xE000ED0C) // Application Interrupt and Reset Control location
+
+  Serial.print("rebooting did not work...");
+
+}

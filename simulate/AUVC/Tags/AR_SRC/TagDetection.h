@@ -89,7 +89,7 @@ struct TagDetection {
   //! Draw the detection within the supplied image, including boarders and tag ID.
   void draw(cv::Mat& image) const;
 
-  int draw2(cv::Mat& image, float* points) const;
+  int draw2(cv::Mat& image, float (&points)[8]) const;
 };
 
 } // namespace

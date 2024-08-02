@@ -28,6 +28,7 @@
 
 #include <mujoco/mjui.h>
 #include <mujoco/mujoco.h>
+#include "AUVC/roverPhysics.h"
 #include "mujoco/mjvisualize.h"
 #include "platform_ui_adapter.h"
 
@@ -51,6 +52,7 @@ typedef int (*plug_update_t)(mjModel *m, mjData *d);
 extern const char* libcontroller_filename;
 extern void *libcontroller;
 extern plug_update_t plug_controller_update;
+extern plug_init_t plug_controller_init;
 // Physics as a Plugin
 extern const char* libphysics_filename;
 extern void *libphysics;

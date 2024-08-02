@@ -290,3 +290,5 @@ if(SIMULATE_BUILD_EXECUTABLE)
     endif()
   endif()
 endif()
+
+add_subdirectory(rx_tx)

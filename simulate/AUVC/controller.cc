@@ -7,6 +7,8 @@
 
 static double Qorn[4] = {0}; // w,x,y,z
 static double orn[3] = {0}; // r[forward axis],p[possibly side axis],y[vertical axis]
+static double zOrn[3] = {0}; // Zero orientation
+
 // a1,a2,a3,a4,a5,a6
 const static float kp = 1.5;
 const static float ki = 0.00005;
@@ -21,19 +23,6 @@ static float balance = 0;
 
 mjtNum pid(mjtNum target, mjtNum currOrn);
 void orn_Control(mjData* d, mjtNum target[3], mjtNum direction[3]);
-
-// t0 = +2.0 * (w * x + y * z)
-// t1 = +1.0 - 2.0 * (x * x + y * y)
-// X = math.degrees(math.atan2(t0, t1))
-//
-// t2 = +2.0 * (w * y - z * x)
-// t2 = +1.0 if t2 > +1.0 else t2
-// t2 = -1.0 if t2 < -1.0 else t2
-// Y = math.degrees(math.asin(t2))
-//
-// t3 = +2.0 * (w * z + x * y)
-// t4 = +1.0 - 2.0 * (y * y + z * z)
-// Z = math.degrees(math.atan2(t3, t4))
 
 void quaternion_to_euler(double x, double y, double z, double w, double *X,
                          double *Y, double *Z) {
@@ -61,6 +50,18 @@ extern "C" void controllerTestFunc(void) { printf("Hi from Plugin!\n"); }
 
 extern "C" int controllerInitPlug(mjModel *m, mjData *d) {
   printf("Init Plug!\n");
+  // Store Zero State data
+  for(int i=0; i<4; i++){
+    Qorn[i] = d->sensordata[i];
+  }
+  quaternion_to_euler(Qorn[1], Qorn[2], Qorn[3], Qorn[0], &zOrn[0], &zOrn[1], &zOrn[2]);
+  printf("zOrn: [%f, %f, %f]", zOrn[0],zOrn[1],zOrn[2]);
+
+  // Set this as the current baseline!
+  // to set new Orientation, we simply say target[yaw] = 10;
+  // i.e move yaw to zOrn[yaw] + currOrn[yaw] +  10:
+
+
   return 0;
 }
 
@@ -73,16 +74,12 @@ extern "C" bool controllerUpdatePlug(mjModel *m, mjData *d) {
   for(int i=0; i<4; i++){
     Qorn[i] = d->sensordata[i];
   }
-  // Qorn[0] = d->sensordata[0];
-  // Qorn[1] = d->sensordata[1];
-  // Qorn[2] = d->sensordata[2];
-  // Qorn[3] = d->sensordata[3];
 
   quaternion_to_euler(Qorn[1], Qorn[2], Qorn[3], Qorn[0], &orn[0], &orn[1], &orn[2]);
   // printf("[0]: %0.3f | [1]: %0.3f | [2]: %0.3f\n", orn[0], orn[1], orn[2]);
 
   // Target Orientation is (90,0,0)
-  double target[3] = {0, 0, 70};
+  double target[3] = {0, 0, 10};
   double direction[3] = {-1, 0, 1};
   orn_Control(d, target, direction);
   return true; // This line must be here
@@ -100,7 +97,7 @@ mjtNum pid(mjtNum target, mjtNum currOrn) {
 
 void orn_Control(mjData* d, mjtNum target[3], mjtNum direction[3]){
   int isYawCCW = direction[2];
-  double yawError = target[2] - orn[2];
+  double yawError = target[2] + zOrn[2] - orn[2];
   // TODO: Controller Logic
   if( -170 >= target[2]  && target[2] >= -180){target[2] = - target[2];}
   if (yawError < 5) {
@@ -124,7 +121,7 @@ void orn_Control(mjData* d, mjtNum target[3], mjtNum direction[3]){
   }
 
   int isRollCCW = direction[0];
-  double rollError = target[0] - orn[0];
+  double rollError = target[0]  + zOrn[0] - orn[0];
 
   double istargetNeg = (target[0]+0.0001)/(abs(target[0])+0.0001);
   if (rollError < istargetNeg * 5) {
@@ -136,5 +133,17 @@ void orn_Control(mjData* d, mjtNum target[3], mjtNum direction[3]){
         d->ctrl[4] = isRollCCW * pid(target[0],orn[0]);
         d->ctrl[5] = isRollCCW * -pid(target[0],orn[0]);
   }
-
 }
+
+// t0 = +2.0 * (w * x + y * z)
+// t1 = +1.0 - 2.0 * (x * x + y * y)
+// X = math.degrees(math.atan2(t0, t1))
+//
+// t2 = +2.0 * (w * y - z * x)
+// t2 = +1.0 if t2 > +1.0 else t2
+// t2 = -1.0 if t2 < -1.0 else t2
+// Y = math.degrees(math.asin(t2))
+//
+// t3 = +2.0 * (w * z + x * y)
+// t4 = +1.0 - 2.0 * (y * y + z * z)
+// Z = math.degrees(math.atan2(t3, t4))
