@@ -4,7 +4,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.print("rebooting...");
+  Serial.print("2rebooting...");
 
   if (Serial.available() > 0) {
     char receivedChar = Serial.read();  // Read the incoming byte

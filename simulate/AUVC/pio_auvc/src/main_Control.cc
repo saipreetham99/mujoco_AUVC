@@ -36,10 +36,11 @@ static float prop = 0;
 static float balance = 0;
 
 static int servo_test =0;
-static int servo_test =0;
+static int servo_test_direction =0;
 
 static double zOrn[3] = {0}; // Zero orientation
 
+void testCamServo();
 double pid(double target, double curr_Orn);
 void setupDepth();
 void setupIMU();
@@ -108,6 +109,7 @@ void setupMotorsAndLed(){
 	m6.attach(mPin6);
 
   led.attach(LedPin);
+  camServo.attach(camServoPin);
 
 	m1.writeMicroseconds(1500); // send "stop" signal to ESC.
 	m2.writeMicroseconds(1500); // send "stop" signal to ESC.
@@ -205,7 +207,7 @@ double pid(double target, double curr_Orn) {
 void testCamServo(){
   servo_test += servo_test_direction;
   // Change direction if the boundaries are reached
-  if (i == -90 || i == 90) {
+  if (servo_test == -90 || servo_test == 90) {
     servo_test_direction = -servo_test_direction;  // Reverse the direction
   }
   camServo.write(servo_test);

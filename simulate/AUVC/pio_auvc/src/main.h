@@ -10,7 +10,7 @@ const byte mPin4 = 4;
 const byte mPin5 = 5;
 const byte mPin6 = 6;
 const byte LedPin = 26;
-const byte camServo = 26;
+const byte camServoPin = 26;
 
 MS5837 sensor;
 
