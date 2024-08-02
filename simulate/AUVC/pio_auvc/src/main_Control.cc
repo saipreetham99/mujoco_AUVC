@@ -14,6 +14,7 @@ Servo m4;
 Servo m5;
 Servo m6;
 Servo led;
+Servo camServo;
 
 MPU9250 mpu;
 MS5837 depth;
@@ -34,6 +35,9 @@ static float diff = 0;
 static float prop = 0;
 static float balance = 0;
 
+static int servo_test =0;
+static int servo_test =0;
+
 static double zOrn[3] = {0}; // Zero orientation
 
 double pid(double target, double curr_Orn);
@@ -53,7 +57,6 @@ void setup() {
   // Send IMU Data;
   setupIMU();
   setupDepth();
-  setupMotorsAndLed();
 
   // Serial.print("\n");
 
@@ -62,6 +65,7 @@ void setup() {
   }else{
     Serial.println("Serial Not available!");
   }
+  setupMotorsAndLed();
 }
 
 void loop() {
@@ -87,7 +91,10 @@ void loop() {
 
   // Update target orn!
 
-  orn_Control()
+
+  orn_Control();
+
+  testCamServo();
 
 }
 
@@ -100,7 +107,7 @@ void setupMotorsAndLed(){
 	m5.attach(mPin5);
 	m6.attach(mPin6);
 
-	led.attach(mPin6);
+  led.attach(LedPin);
 
 	m1.writeMicroseconds(1500); // send "stop" signal to ESC.
 	m2.writeMicroseconds(1500); // send "stop" signal to ESC.
@@ -176,10 +183,10 @@ void setupDepth(){
 
 void updateSensors(){
   mpu.update();
-
   currOrn[0] = mpu.getRoll();
   currOrn[1] = mpu.getPitch();
   currOrn[2] = mpu.getYaw();
+
   depth.read();
   currPressure = depth.pressure();
 }
@@ -193,4 +200,13 @@ double pid(double target, double curr_Orn) {
     balance = (kp * prop) + (ki * intg) + (kd * diff);
     last_error = error;
     return balance;
+}
+
+void testCamServo(){
+  servo_test += servo_test_direction;
+  // Change direction if the boundaries are reached
+  if (i == -90 || i == 90) {
+    servo_test_direction = -servo_test_direction;  // Reverse the direction
+  }
+  camServo.write(servo_test);
 }
