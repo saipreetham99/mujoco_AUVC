@@ -143,7 +143,7 @@ target_compile_options(libsimulate PRIVATE ${MUJOCO_SIMULATE_COMPILE_OPTIONS})
 target_link_libraries(libsimulate PUBLIC lodepng
                                          mujoco::platform_ui_adapter
                                          mujoco::mujoco
-                                         CustomTag
+                                         # CustomTag
                      )
 target_link_options(libsimulate PRIVATE ${MUJOCO_SIMULATE_LINK_OPTIONS})
 
@@ -191,7 +191,7 @@ if(SIMULATE_BUILD_EXECUTABLE)
     glfw
     Threads::Threads
     lodepng
-    CustomTag
+    # CustomTag
     ${OpenCV_LIBS}
   )
 
