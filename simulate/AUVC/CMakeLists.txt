@@ -23,19 +23,19 @@ find_package(OpenCV)
 file(GLOB APRILTAG_HEADERS AR_SRC/*.h)
 file(GLOB APRILTAG_SRCS AR_SRC/*.cc)
 
-add_library(CustomTag STATIC ${APRILTAG_HEADERS}
-                             ${APRILTAG_SRCS}
-                             Tags/Serial.h
-                             Tags/Serial.cc
-                             Tags/tags.h
-                             Tags/tags.cc)
+# add_library(CustomTag STATIC ${APRILTAG_HEADERS}
+#                              ${APRILTAG_SRCS}
+#                              Tags/Serial.h
+#                              Tags/Serial.cc
+#                              Tags/tags.h
+#                              Tags/tags.cc)
 
-target_include_directories(CustomTag PUBLIC ${OpenCV_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
-list(APPEND CMAKE_INCLUDE_PATH "/usr/include")
-target_link_libraries(CustomTag PRIVATE mujoco::mujoco Eigen3::Eigen ${OpenCV_LIBS})
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  target_link_libraries(CustomTag -L/opt/local/lib/) # MacPorts special treatment...
-else (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  target_link_libraries(CustomTag PUBLIC v4l2 )
-endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+# target_include_directories(CustomTag PUBLIC ${OpenCV_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
+# list(APPEND CMAKE_INCLUDE_PATH "/usr/include")
+# target_link_libraries(CustomTag PRIVATE mujoco::mujoco Eigen3::Eigen ${OpenCV_LIBS})
+#
+# if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+#   target_link_libraries(CustomTag -L/opt/local/lib/) # MacPorts special treatment...
+# else (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+#   target_link_libraries(CustomTag PUBLIC v4l2 )
+# endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
