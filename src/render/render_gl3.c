@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "render/glad/glad.h"
 #include "render/render_gl3.h"
 
 #include <math.h>
@@ -29,7 +30,7 @@
 #include "render/render_context.h"
 #include "render/render_gl2.h"
 #include "render/render_util.h"
-#include "render/glad/glad.h"
+// #include "render/glad/glad.h" // Removed from here
 
 // Added for water rendering
 static const char* water_vertex_shader_source =

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "render/glad/glad.h"
 #include "render/render_context.h"
 
 #include <math.h>
@@ -19,13 +20,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-// #include "glad/glad.h" // Removed as per request, render/glad/glad.h is used below
 
 #include <mujoco/mjmacro.h>
 #include <mujoco/mjvisualize.h>
 #include <mujoco/mujoco.h>
 #include "render/render_util.h"
-#include "render/glad/glad.h"
 
 // Added for water rendering - declaration of variable in render_gl3.c
 extern GLuint water_shader_program;
