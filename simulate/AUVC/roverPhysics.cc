@@ -55,8 +55,8 @@ extern "C" bool roverPhysicsUpdatePlug(mjModel *m, mjData *d) {
     quaternion_to_euler(_Qorn[1], _Qorn[2], _Qorn[3], _Qorn[0], &_orn[0], &_orn[1], &_orn[2]);
     if(d->qpos[2] <= start_height - 0.1 ){
         float fnew = (force < max_bouyancy_force) ? (force) : (max_bouyancy_force);
-        d->ctrl[6] = fnew/4.0;
-        d->ctrl[7] = fnew/4.0;
+//         d->ctrl[6] = fnew/4.0;
+//         d->ctrl[7] = fnew/4.0;
         d->ctrl[8] = fnew/4.0;
         d->ctrl[9] = fnew/4.0;
         // printf("UP:%0.4f | MAX_B: %0.4f\n",fnew, max_bouyancy_force);

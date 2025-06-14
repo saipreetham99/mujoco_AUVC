@@ -66,7 +66,7 @@ extern "C" int controllerInitPlug(mjModel *m, mjData *d) {
 }
 
 extern "C" bool controllerUpdatePlug(mjModel *m, mjData *d) {
-  // int idx = mj_name2id(m, mjOBJ_ACTUATOR , "a6");
+   // int idx = mj_name2id(m, mjOBJ_ACTUATOR , "a6");
 
   // Capture Orientation
   //   [Px,Py,Pz, Ow,Ox,Oy,Oz]
@@ -102,10 +102,10 @@ void orn_Control(mjData* d, mjtNum target[3], mjtNum direction[3]){
   if( -170 >= target[2]  && target[2] >= -180){target[2] = - target[2];}
   if (yawError < 5) {
         // printf("c1\n");
-        d->ctrl[0] = isYawCCW * -pid(target[2],orn[2]);
-        d->ctrl[3] = isYawCCW * -pid(target[2],orn[2]);
-        d->ctrl[1] = isYawCCW * pid(target[2],orn[2]);
-        d->ctrl[2] = isYawCCW * pid(target[2],orn[2]);
+//         d->ctrl[0] = isYawCCW * -pid(target[2],orn[2]);
+//         d->ctrl[3] = isYawCCW * -pid(target[2],orn[2]);
+//         d->ctrl[1] = isYawCCW * pid(target[2],orn[2]);
+//         d->ctrl[2] = isYawCCW * pid(target[2],orn[2]);
   } else if (yawError > 5) {
         // printf("c2\n");
         d->ctrl[0] = isYawCCW * pid(target[2],orn[2]);
