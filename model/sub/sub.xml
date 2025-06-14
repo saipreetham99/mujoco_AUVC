@@ -206,7 +206,7 @@
         <geom euler="0 -1.57 1.57" class="pool_cross" pos="24.99 -10 1" />
       </body>
 
-      <geom name="water_geom" type="box" pos="0 0 1" size="25 12.5 0.001" rgba="0.2 0.3 0.8 0.5" material="water_material" contype="0" conaffinity="0"/>
+      <geom name="water_geom" type="box" pos="0 0 1" size="25 12.5 0.001" rgba="0.2 0.3 0.8 0.5" material="water_material" contype="0" conaffinity="0" segid="99"/>
     </worldbody>
 
     <actuator>

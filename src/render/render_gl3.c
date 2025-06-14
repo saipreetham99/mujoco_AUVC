@@ -19,6 +19,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+// #include "glad/glad.h" // Removed as per request, render/glad/glad.h is used below
+
 #include <mujoco/mjmacro.h>
 #include <mujoco/mjvisualize.h>
 #include <mujoco/mujoco.h>
@@ -287,47 +289,20 @@ enum {
 // render one geom
 static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
                        const mjvScene* scn, const mjrContext* con) {
-  const mjModel* m = scn->model; // Added to access model details
-  int is_water_geom = 0;
-  if (m && geom->matid >= 0 && geom->matid < m->nmat) {
-    int texid = m->mat_texid[geom->matid * mjNTEXMAT]; // Assuming first texture in material slot
-    if (texid >= 0 && texid < m->ntex) {
-      const char* tex_name = mj_id2name(m, mjOBJ_TEXTURE, texid);
-      if (tex_name && strcmp(tex_name, "water_texture") == 0) {
-        is_water_geom = 1;
-      }
-    }
-  }
+  int is_water_geom = (geom->segid == 99);
 
   if (is_water_geom && mode == mjrRND_NORMAL) {
     if (water_shader_program == 0) {
-      compile_water_shaders((mjrContext*)con); // Cast needed if con is const in compile_water_shaders
+      compile_water_shaders((mjrContext*)con);
     }
     glUseProgram(water_shader_program);
 
-    // Get current matrices
-    float model_matrix[16], view_matrix[16], projection_matrix[16];
-    glGetFloatv(GL_MODELVIEW_MATRIX, model_matrix); // This will be modified by push/translate/mult
-    // For view and projection, it's better to get them before model specific transforms if possible
-    // However, renderGeom is called after setView, so PROJECTION_MATRIX should be correct
-    // For VIEW_MATRIX, it's tricky as GL_MODELVIEW is already a combined model-view.
-    // For simplicity here, we'll get MODELVIEW and assume it's effectively the view for the shader
-    // if the shader's 'model' uniform is set to identity or local geom transform.
-    // A more robust way would be to pass view and projection from mjr_render.
-    // Let's assume the current GL_MODELVIEW_MATRIX is the "view" from camera perspective,
-    // and we will apply the geom's specific transform via shader's "model" uniform.
+    float view_matrix[16], projection_matrix[16];
 
-    // Store current model-view matrix (which is camera's view matrix at this point)
+    // Get camera's view and projection matrices (assuming they are current on GL stack)
     glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix);
     glGetFloatv(GL_PROJECTION_MATRIX, projection_matrix);
 
-    // The geom's local transformation will be applied via glTranslate/glMultMatrixf
-    // and then captured into `model_matrix` for the shader.
-    // So, the shader's `view` uniform will be the camera's view matrix.
-    // The shader's `model` uniform will be the geom's local transform relative to world.
-
-    // Set matrix uniforms - this needs to be done AFTER geom's specific transforms
-    // We will set them later, after glPushMatrix and local transformations.
     GLint model_loc = glGetUniformLocation(water_shader_program, "model");
     GLint view_loc = glGetUniformLocation(water_shader_program, "view");
     GLint proj_loc = glGetUniformLocation(water_shader_program, "projection");
@@ -336,18 +311,19 @@ static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
 
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view_matrix);
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection_matrix);
-
-    glUniform1i(water_texture_loc, 0); // Assuming water texture will be bound to GL_TEXTURE0
     glUniform4fv(water_color_loc, 1, geom->rgba);
+    glUniform1i(water_texture_loc, 0); // Use texture unit 0 for waterTexture
 
-    // Activate and bind texture
-    if (geom->matid >=0) {
-      int texid_for_water = con->mat_texid[mjNTEXMAT * geom->matid];
-      if (texid_for_water != -1) {
-        glActiveTexture(GL_TEXTURE0);
-        glEnable(GL_TEXTURE_2D); // Should be GL_TEXTURE_2D for sampler2D
-        glBindTexture(GL_TEXTURE_2D, con->texture[texid_for_water]);
-      }
+    // Activate and bind texture for water
+    if (geom->matid != -1 && geom->matid < con->model->nmat) {
+        int texid = con->mat_texid[mjNTEXMAT * geom->matid];
+        if (texid != -1 && texid < con->model->ntex) {
+            glActiveTexture(GL_TEXTURE0);
+            // Note: The shader expects a 2D texture. Ensure the XML provides one.
+            // If con->textureType[texid] could be cube, more logic would be needed.
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, con->texture[texid]);
+        }
     }
   }
 
@@ -373,7 +349,7 @@ static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
   behind = isBehind(headpos, geom->pos, geom->mat);
 
   // enable texture in normal and shadowmap mode
-  if (geom->matid >= 0 &&
+  if (!is_water_geom && geom->matid >= 0 &&
       (mode == mjrRND_NORMAL || mode == mjrRND_SHADOWMAP)) {
     settexture(mjtexREGULAR, 1, con, geom);
   }
@@ -436,41 +412,39 @@ static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
     float current_model_matrix[16];
     glGetFloatv(GL_MODELVIEW_MATRIX, current_model_matrix);
     GLint model_loc = glGetUniformLocation(water_shader_program, "model");
-    // The current GL_MODELVIEW_MATRIX now includes the geom's local transformation.
-    // We need to pass this as the "model" matrix to the shader.
-    // However, the shader expects model, view, projection separately.
-    // A common pattern:
-    // Shader: gl_Position = projection * view * model * vec4(aPos, 1.0);
-    // OpenGL side before this function:
-    //   glMatrixMode(GL_PROJECTION); glLoadMatrix(projection_matrix_cam);
-    //   glMatrixMode(GL_MODELVIEW); glLoadMatrix(view_matrix_cam);
-    // Inside this function (for a specific geom):
-    //   glPushMatrix();
-    //   glTranslatef(...); glMultMatrixf(...); // these define the geom's model matrix
-    //   glGetFloatv(GL_MODELVIEW_MATRIX, model_view_for_geom); // This is view_matrix_cam * model_matrix_geom
-    //
-    // For the custom shader, we need to separate model_matrix_geom.
-    // One way: get current GL_MODELVIEW_MATRIX (which is view_matrix_cam * local_model_transform)
-    // and pass it as combined model*view, then shader is: projection * modelview * pos.
-    // Or, pass identity as "view" to shader, and current GL_MODELVIEW_MATRIX as "model".
-    // Let's try to get the pure model transform.
-    // This is tricky with immediate mode. A cleaner way is to reconstruct it.
-    // For now, let's assume the shader's "model" input will take the full
-    // current_model_matrix, and the "view" uniform (set earlier) was the camera's view.
-    // This means the shader's model * view will be current_model_matrix * camera_view_matrix. This is not standard.
+    // The GL_MODELVIEW_MATRIX on CPU is now effectively a "model matrix" for the geom
+    // relative to the camera's view (which was set as GL_MODELVIEW_MATRIX before this function).
+    // The shader expects: projection * view * model.
+    // We have set `view` to the camera's view, and `projection` to camera's projection.
+    // So, we need to pass the geom's local transform matrix as `model`.
+    // The matrix `mat` (geom->mat) is the geom's orientation in its body frame.
+    // The `glTranslatef` and `glMultMatrixf(mat)` compose the local transformation.
+    // We need to get this composed local transform.
+    // A simpler approach with immediate mode:
+    // The current GL_MODELVIEW_MATRIX is (CameraView * GeomLocalTransform)
+    // If shader's view uniform is set to CameraView, then shader's model uniform should be GeomLocalTransform.
+    // If shader's view uniform is set to Identity, then shader's model uniform should be (CameraView * GeomLocalTransform).
+    // The code currently sets shader's view to CameraView (glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix) *before* push/translate/mult)
+    // and then sets shader's model to (CameraView * GeomLocalTransform) (glGetFloatv(GL_MODELVIEW_MATRIX, current_model_matrix) *after* push/translate/mult).
+    // This results in (Projection * CameraView * (CameraView * GeomLocalTransform) * Pos) which is incorrect.
 
-    // Let's adjust: The "model" in shader should be the geom's local transform.
-    // The "view" in shader is the camera's view matrix (already set).
-    // The current GL_MODELVIEW_MATRIX on CPU is V*M_geom.
-    // We need M_geom.
-    // An alternative: set the shader's "view" uniform to Identity and "model" to current GL_MODELVIEW_MATRIX.
-    // Then shader becomes: gl_Position = projection * Identity * (V_cam * M_geom) * pos
-    // This is equivalent to: gl_Position = projection * (V_cam * M_geom) * pos
-    // This seems more viable with immediate mode matrix stack.
-    float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    // Corrected approach:
+    // Shader `view` uniform = current GL_MODELVIEW_MATRIX *before* geom specific transforms (this is the camera's view matrix, V_cam)
+    // Shader `model` uniform = geom's local transformation matrix (M_local)
+    // However, getting M_local purely is hard here.
+    // Alternative:
+    // Set shader's `view` uniform to Identity.
+    // Set shader's `model` uniform to the current GL_MODELVIEW_MATRIX *after* geom-specific transforms. This matrix is (V_cam * M_local).
+    // Shader then calculates: projection * identity * (V_cam * M_local) * pos. This is correct.
+    float current_model_view_matrix[16];
+    glGetFloatv(GL_MODELVIEW_MATRIX, current_model_view_matrix); // This is V_cam * M_local
+
+    GLint model_loc = glGetUniformLocation(water_shader_program, "model");
     GLint view_loc = glGetUniformLocation(water_shader_program, "view");
-    glUniformMatrix4fv(view_loc, 1, GL_FALSE, identity_matrix); // Override view with identity
-    glUniformMatrix4fv(model_loc, 1, GL_FALSE, current_model_matrix); // Pass current MV as model
+
+    float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    glUniformMatrix4fv(view_loc, 1, GL_FALSE, identity_matrix); // Set shader view to identity
+    glUniformMatrix4fv(model_loc, 1, GL_FALSE, current_model_view_matrix); // Set shader model to V_cam * M_local
   }
 
   // render geom
@@ -751,25 +725,26 @@ static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
 
   if (is_water_geom && mode == mjrRND_NORMAL && water_shader_program !=0) {
     glUseProgram(0);
-    // Disable texture after use if it was specifically for water
-    if (geom->matid >=0) {
-       int texid_for_water = con->mat_texid[mjNTEXMAT * geom->matid];
-      if (texid_for_water != -1) {
+    // Disable texture unit if it was enabled for water
+    if (geom->matid != -1 && con->mat_texid[mjNTEXMAT * geom->matid] != -1) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, 0); // Unbind
-        // Do not disable GL_TEXTURE_2D here if settexture below might need it
-      }
+        // Consider if GL_TEXTURE_2D should be disabled if no other geom will immediately use it.
+        // For safety, let's assume fixed pipeline (settexture) will manage this.
     }
   }
 
-  // disable texture if enabled
-  if (geom->matid >= 0 &&
+  // disable texture if enabled by fixed pipeline for non-water or non-normal modes
+ if (!is_water_geom && geom->matid >= 0 &&
       (mode == mjrRND_NORMAL || mode == mjrRND_SHADOWMAP)) {
-    // For water geom, texture was handled by shader, so don't call settexture(0)
-    // unless it's also handled by fixed pipeline for other modes (e.g. shadowmap)
-    if (!is_water_geom || mode != mjrRND_NORMAL) {
+    settexture(mjtexREGULAR, 0, con, geom);
+  }
+  // If it WAS a water geom, but not mjrRND_NORMAL (e.g. shadowmap),
+  // the fixed-pipeline texture might have been enabled by settexture(1) earlier.
+  // So, we need to disable it.
+  else if (is_water_geom && mode != mjrRND_NORMAL && geom->matid >=0 &&
+           (mode == mjrRND_NORMAL || mode == mjrRND_SHADOWMAP) ) {
       settexture(mjtexREGULAR, 0, con, geom);
-    }
   }
 }
 

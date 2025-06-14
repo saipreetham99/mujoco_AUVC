@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// #include "glad/glad.h" // Removed as per request, render/glad/glad.h is used below
+
 #include <mujoco/mjmacro.h>
 #include <mujoco/mjvisualize.h>
 #include <mujoco/mujoco.h>
