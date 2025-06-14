@@ -25,6 +25,9 @@
 #include "render/render_util.h"
 #include "render/glad/glad.h"
 
+// Added for water rendering - declaration of variable in render_gl3.c
+extern GLuint water_shader_program;
+
 // bitmap font definitions
 #include "render/font/normal50.inc"
 #include "render/font/normal100.inc"
@@ -1577,6 +1580,9 @@ void mjr_makeContext_offSize(const mjModel* m, mjrContext* con, int fontscale,
 
   mjr_freeContext(con);
 
+  // Added for water rendering
+  water_shader_program = 0;
+
   // no model: offscreen and font only
   if (!m) {
     // default offscreen
@@ -1797,6 +1803,12 @@ void mjr_freeContext(mjrContext* con) {
   // save flags
   int glInitialized = con->glInitialized;
   int windowAvailable = con->windowAvailable;
+
+  // Added for water rendering
+  if (water_shader_program) {
+    glDeleteProgram(water_shader_program);
+    water_shader_program = 0; // defensively set to 0 after deletion
+  }
   int windowSamples = con->windowSamples;
   int windowStereo = con->windowStereo;
   int windowDoublebuffer = con->windowDoublebuffer;
